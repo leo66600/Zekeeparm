@@ -49,7 +49,13 @@ curl -fL --retry 3 -o mobileclip2_b.ts \
 
 运行视觉入口时保持当前目录为 `src/rebot_grasp`，文本编码器从当前目录加载；未提前放置时，首次设置检测类别会联网自动下载。YOLOE-26 需要 Ultralytics 8.4.0 及以上，本包固定为 8.4.35。说明见 [Ultralytics YOLOE 官方文档](https://docs.ultralytics.com/models/yoloe/)。
 
-这两个文件只用于检测与分割。完整抓取还需自行准备 GraspNet 权重，放置位置由 `src/rebot_grasp/config/default.yaml` 的 `graspnet.checkpoint` 指定，使用前遵守其许可。
+这两个文件只用于检测与分割。完整抓取还需下载当前配置使用的 GraspNet **`checkpoint-rs.tar`**：
+
+- [官方 Google Drive 下载](https://drive.google.com/file/d/1hd0G8LN6tRpi4742XOTEisbTXNZ-1jmk/view?usp=sharing)
+- [官方百度网盘备用入口](https://pan.baidu.com/s/1Eme60l39tTZrilF0I86R5A)
+- [官方权重说明与许可](https://github.com/graspnet/graspnet-baseline#training-and-testing)
+
+下载后放到工作区的 `third_party/graspnet-baseline/checkpoints/checkpoint-rs.tar`，保持文件名，**不要解压**。当前 `src/rebot_grasp/config/default.yaml` 的 `graspnet.checkpoint` 已设置为 `checkpoint-rs.tar`，无需修改。该权重使用 RealSense 数据训练，和 `checkpoint-kn.tar`（Kinect 数据）不是同一文件。安装脚本在接受许可后获取 GraspNet 源码和构建 CUDA 扩展，不下载权重；使用前须阅读并遵守官方许可。
 
 ## NVIDIA 驱动和 CUDA 12.8
 
