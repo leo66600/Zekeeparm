@@ -48,6 +48,7 @@ def load_yolo(
     conf_override: Optional[float] = None,
     iou_override: Optional[float] = None,
     infer_every_override: Optional[int] = None,
+    extra_classes: Optional[list[str]] = None,
 ) -> tuple[Optional[Any], dict[str, Any]]:
     gp_cfg = cfg.get("grasp_pipeline", {})
     yolo_opts: dict[str, Any] = {
@@ -61,20 +62,30 @@ def load_yolo(
 
     yolo_cfg = cfg.get("yolo", {})
     det_cfg = cfg.get("detection", {})
-    model_name = str(model_override or yolo_cfg.get("model_name", "models/custom-segmentation.pt"))
+    model_name = str(model_override or yolo_cfg.get("model_name", "yoloe-26s-seg.pt"))
     model_path = resolve_yolo_model_path(model_name, project_root)
     device = device_override or yolo_cfg.get("device", "cpu")
     conf = float(conf_override if conf_override is not None else det_cfg.get("conf_threshold", 0.25))
     iou = float(iou_override if iou_override is not None else det_cfg.get("iou_threshold", 0.45))
+    custom_classes = list(yolo_cfg.get("custom_classes", []))
+    for extra_class in extra_classes or []:
+        if extra_class and extra_class not in custom_classes:
+            custom_classes.append(extra_class)
+    use_world = bool(yolo_cfg.get("use_world", True))
 
     print(f"Loading YOLO target detector: {model_path}")
     model = YOLO(str(model_path))
+    if use_world and ("world" in model_name.lower() or "yoloe" in model_name.lower()) and custom_classes:
+        model.set_classes(custom_classes)
+        print(f"YOLO open-vocabulary classes: {custom_classes}")
+
     yolo_opts.update(
         {
             "model_name": model_name,
             "device": device,
             "conf": conf,
             "iou": iou,
+            "custom_classes": custom_classes,
         }
     )
     return model, yolo_opts

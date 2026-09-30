@@ -15,4 +15,6 @@ __pycache__/
 node_modules/
 src/rebot_grasp/logs/
 src/rebot_grasp/data/
+src/rebot_grasp/models/*.pt
+src/rebot_grasp/mobileclip*.ts
 src/zekeep_teach/logs/

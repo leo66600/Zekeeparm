@@ -1010,6 +1010,7 @@ def main() -> int:
         yolo, yolo_opts = load_yolo(
             cfg,
             project_root=PROJECT_ROOT,
+            extra_classes=[target_class],
         )
         net = build_net(checkpoint_path, num_view=int(gp_cfg.get("num_view", 300)))
         # Load every fallible perception asset before enabling or moving the

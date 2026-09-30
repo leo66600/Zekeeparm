@@ -126,6 +126,9 @@ fi
   torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
   --index-url https://download.pytorch.org/whl/cu128 \
   --extra-index-url https://pypi.org/simple
+"$conda_exe" run -n rebotarm python -m pip install \
+  -c "$workspace_dir/tools/constraints-vision.txt" \
+  ftfy regex tqdm "git+https://github.com/ultralytics/CLIP.git@c4b6ea0932a2c0f39a0fa528af5ec4982ff15cab"
 "$conda_exe" run -n rebotarm python -m pip install --no-deps -e "$workspace_dir/third_party/reBotArm_control_py"
 "$conda_exe" run -n rebotarm python -m pip install --force-reinstall --no-deps opencv-contrib-python==4.7.0.72
 

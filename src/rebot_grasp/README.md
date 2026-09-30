@@ -4,8 +4,8 @@ Zekeep 直接 SDK 视觉抓取、RGB-D 相机与标定工具。
 
 ## 环境与启动
 
-先按[安装说明](../../docs/INSTALL_PORTABLE.md)准备视觉环境、Orbbec SDK、模型权重和 CUDA 扩展，
-再按[SDK 安装说明](../../docs/SDK_INSTALL.md)安装 reBotArm SDK。设置 `ZKEEP_WS` 为实际工作区绝对路径，
+先按[工作区安装说明](../../README.md#一键安装)准备视觉环境、SDK 和 CUDA 扩展，
+再按[视觉权重下载说明](../../README.md#视觉权重下载)准备 YOLOE-26l 和 MobileCLIP 文件。设置 `ZKEEP_WS` 为实际工作区绝对路径，
 使用独立 `rebotarm` 环境，不把视觉 NumPy 约束安装进 ROS venv。
 
 主抓取入口：

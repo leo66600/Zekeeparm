@@ -194,8 +194,21 @@ place:
   insertion_depth_m: 0.0
 
 yolo:
-  model_name: "models/custom-segmentation.pt"
+  model_name: "yoloe-26l-seg.pt"
   device: "0"
+  use_world: true
+  custom_classes:
+    - "red block"
+    - "blue block"
+    - "green block"
+    - "gray block"
+    - "block"
+    - "pen"
+    - "cardboard box"
+    - "paper cup"
+    - "transparent tape roll"
+    - "tissue box"
+    - "tissue paper"
 
 grasp_pipeline:
   infer_every_live: 3

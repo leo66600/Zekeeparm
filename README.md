@@ -25,11 +25,31 @@ cd "$HOME/Desktop/Zekeeparm"
 bash setup.sh
 ```
 
-脚本安装 ROS、SDK、视觉环境和 LeRobot 遥操作环境。不下载模型权重，也不安装 VLM。GraspNet 源码仅在用户明确接受其非商业内部研究许可后获取。中断后可直接重跑。
+脚本安装 ROS、SDK、视觉环境、YOLOE 所需的 CLIP 文本组件和 LeRobot 遥操作环境，不下载模型权重。GraspNet 源码仅在用户明确接受其非商业内部研究许可后获取。中断后可直接重跑。
 
-视觉检测需用户自行准备兼容 Ultralytics 的封闭类别分割权重，并放到 `src/rebot_grasp/models/custom-segmentation.pt`。仓库及安装脚本不提供或下载任何模型、VLA/VLM 或开放词汇检测组件。
+视觉检测保留原工作区的 YOLOE-26l 开放词汇分割功能，可通过 `yolo.custom_classes` 或 `--target-class` 指定目标名称。仅恢复此功能及其 CLIP 依赖，不包含其他 VLA/VLM 研究模块。权重不随仓库分发。
 
 脚本未找到 CUDA 12.8 或可见 NVIDIA GPU 时，会跳过 GraspNet 原生扩展。完成下方 GPU 安装后重跑 `bash setup.sh`。
+
+## 视觉权重下载
+
+使用原配置对应的两个官方文件，不要下载普通 YOLO26、YOLO11 或 `-seg-pf.pt` 代替：
+
+- [yoloe-26l-seg.pt](https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26l-seg.pt)：放到 `src/rebot_grasp/models/yoloe-26l-seg.pt`，保持原文件名。
+- [mobileclip2_b.ts](https://github.com/ultralytics/assets/releases/download/v8.4.0/mobileclip2_b.ts)：放到 `src/rebot_grasp/mobileclip2_b.ts`。
+
+```bash
+cd "$HOME/Desktop/Zekeeparm/src/rebot_grasp"
+mkdir -p models
+curl -fL --retry 3 -o models/yoloe-26l-seg.pt \
+  https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26l-seg.pt
+curl -fL --retry 3 -o mobileclip2_b.ts \
+  https://github.com/ultralytics/assets/releases/download/v8.4.0/mobileclip2_b.ts
+```
+
+运行视觉入口时保持当前目录为 `src/rebot_grasp`，文本编码器从当前目录加载；未提前放置时，首次设置检测类别会联网自动下载。YOLOE-26 需要 Ultralytics 8.4.0 及以上，本包固定为 8.4.35。说明见 [Ultralytics YOLOE 官方文档](https://docs.ultralytics.com/models/yoloe/)。
+
+这两个文件只用于检测与分割。完整抓取还需自行准备 GraspNet 权重，放置位置由 `src/rebot_grasp/config/default.yaml` 的 `graspnet.checkpoint` 指定，使用前遵守其许可。
 
 ## NVIDIA 驱动和 CUDA 12.8
 
