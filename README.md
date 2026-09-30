@@ -11,9 +11,9 @@
 | 示教与手柄 | 重力补偿拖动示教、轨迹复现、六轴与末端遥控 | [`src/zekeep_teach`](src/zekeep_teach)、[`src/zekeep_joystick`](src/zekeep_joystick) |
 | 视觉抓取 | 相机、当前内参与手眼标定、检测、GraspNet 抓取 | [`src/rebot_grasp`](src/rebot_grasp) |
 | LeRobot 遥操作 | 独立 Python/Conda 主从遥操作环境 | [`src/zekeep_teleop`](src/zekeep_teleop) |
-|  SDK | | [`docs/SDK_INSTALL.md`](docs/SDK_INSTALL.md) |
+| 定制 SDK | 独立仓库维护，安装固定到 `v0.1.0` | [Zekeep_control_py](https://github.com/leo66600/Zekeep_control_py) |
 
-单仓集成布局：ROS 包置于 `src/`；安装与构建脚本置于 `tools/` 和根目录；各模块说明置于对应包内；外部 SDK 按上游仓库获取。
+集成布局：ROS 包置于 `src/`；安装与构建脚本置于 `tools/` 和根目录；定制 SDK 独立仓库维护；各模块说明置于对应包内。
 
 ## 一键安装
 
@@ -121,7 +121,7 @@ conda run -n rebotarm python src/rebot_grasp/scripts/confirm_calibration.py \
 
 ## 许可
 
-本工作区仅供本人或同一机构内部非商业研究，不得用于商业用途或向第三方转让、分发。GraspNet 源码与权重另受其上游许可限制。官方 SDK 与其他依赖按各自上游条款使用。
+本工作区仅供本人或同一机构内部非商业研究，不得用于商业用途或向第三方转让、分发。GraspNet 源码与权重另受其上游许可限制。定制 SDK 保留 Seeed 上游 fork 关系和历史，按上游条款使用。
 
 ## 安全提示
 

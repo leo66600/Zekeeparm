@@ -28,11 +28,28 @@ source /etc/os-release
 setup_temp_dir="$(mktemp -d)"
 trap 'rm -rf -- "$setup_temp_dir"' EXIT
 
-step "获取官方 reBotArm SDK"
+step "获取 Zekeep SDK"
 sdk_dir="$workspace_dir/third_party/reBotArm_control_py"
-if [[ ! -d "$sdk_dir/.git" ]]; then
+sdk_url="https://github.com/leo66600/Zekeep_control_py.git"
+sdk_ref="v0.1.0"
+if [[ -d "$sdk_dir/.git" ]]; then
+  if [[ -n "$(git -C "$sdk_dir" status --porcelain)" ]]; then
+    die "SDK Git 工作区有未提交改动；先备份或提交后再安装固定版本 $sdk_ref"
+  fi
+  if git -C "$sdk_dir" remote get-url origin >/dev/null 2>&1; then
+    git -C "$sdk_dir" remote set-url origin "$sdk_url"
+  else
+    git -C "$sdk_dir" remote add origin "$sdk_url"
+  fi
+  git -C "$sdk_dir" fetch --depth 1 origin "refs/tags/$sdk_ref"
+  git -C "$sdk_dir" checkout --detach FETCH_HEAD
+elif [[ -f "$sdk_dir/pyproject.toml" ]]; then
+  printf '使用包内 SDK 源码：%s\n' "$sdk_dir"
+elif [[ ! -e "$sdk_dir" ]]; then
   mkdir -p "$workspace_dir/third_party"
-  git clone --depth 1 https://github.com/Seeed-Projects/reBotArm_control_py.git "$sdk_dir"
+  git clone --depth 1 --branch "$sdk_ref" "$sdk_url" "$sdk_dir"
+else
+  die "SDK 路径存在但内容不完整：$sdk_dir"
 fi
 
 step "安装 ROS 2 Humble 和系统依赖"

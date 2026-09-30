@@ -1,6 +1,6 @@
 # Zekeep reBotArm Python SDK 安装
 
-安装脚本从 [Seeed-Projects 官方 SDK 仓库](https://github.com/Seeed-Projects/reBotArm_control_py)获取源码到 `third_party/reBotArm_control_py`。本仓库不镜像 SDK 源码；使用时遵守上游发布条款。控制接口由 Python 提供；Pinocchio 等依赖包含 C++ 原生库。
+安装脚本从 [Zekeep_control_py](https://github.com/leo66600/Zekeep_control_py) 的 `v0.1.0` 标签获取 SDK 到 `third_party/reBotArm_control_py`。该版本适配本工作区；Python 导入名仍为 `reBotArm_control_py`。SDK 仓库保留 Seeed 上游 fork 关系和历史；使用时须遵守上游条款。控制接口由 Python 提供；Pinocchio 等依赖包含 C++ 原生库。
 
 ## 功能特性
 
