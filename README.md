@@ -121,7 +121,7 @@ conda run -n rebotarm python src/rebot_grasp/scripts/confirm_calibration.py \
 
 ## 许可
 
-本工作区仅供本人或同一机构内部非商业研究，不得用于商业用途或向第三方转让、分发。GraspNet 源码与权重另受其上游许可限制。定制 SDK 保留 Seeed 上游 fork 关系和历史，按上游条款使用。
+本工作区仅供本人或同一机构内部非商业研究，不得用于商业用途或向第三方转让、分发。GraspNet 源码与权重另受其使用许可限制；定制 SDK 按适用许可条款使用。
 
 ## 安全提示
 
