@@ -1,6 +1,6 @@
-# Zekeeparm | reBotArm 六轴机械臂
+# 六轴全栈具身机器人学习平台 --ZK-EM600擎栈
 
-面向 Ubuntu 22.04 x86_64、ROS 2 Humble、Python 3.10 的 reBotArm 运行与集成工作区。覆盖 ROS 控制、MoveIt、示教、手柄、视觉抓取和独立主从遥操作。
+面向 Ubuntu 22.04 x86_64、ROS 2 Humble、Python 3.10 的zekeeparm运行与集成工作区。覆盖 ROS 控制、MoveIt、示教、手柄、视觉抓取和独立主从遥操作。
 
 ## 能力
 
@@ -11,7 +11,7 @@
 | 示教与手柄 | 重力补偿拖动示教、轨迹复现、六轴与末端遥控 | [`src/zekeep_teach`](src/zekeep_teach)、[`src/zekeep_joystick`](src/zekeep_joystick) |
 | 视觉抓取 | 相机、当前内参与手眼标定、检测、GraspNet 抓取 | [`src/rebot_grasp`](src/rebot_grasp) |
 | LeRobot 遥操作 | 独立 Python/Conda 主从遥操作环境 | [`src/zekeep_teleop`](src/zekeep_teleop) |
-| 官方 SDK | 安装时从 Seeed 官方仓库获取，不镜像其源码 | [`docs/SDK_INSTALL.md`](docs/SDK_INSTALL.md) |
+|  SDK | | [`docs/SDK_INSTALL.md`](docs/SDK_INSTALL.md) |
 
 单仓集成布局：ROS 包置于 `src/`；安装与构建脚本置于 `tools/` 和根目录；各模块说明置于对应包内；外部 SDK 按上游仓库获取。
 
