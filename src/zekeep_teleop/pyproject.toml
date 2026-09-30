@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=71"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lerobot_teleoperator_zhongling"
+version = "0.1.0"
+description = "Zhongling seven-axis leader teleoperation for the zk_xm115 follower"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "lerobot==0.4.4",
+    "lerobot-robot-seeed-b601==1.0.0",
+    "motorbridge==0.4.9",
+    "pyserial==3.5",
+    "PyYAML>=6,<7",
+]
+
+[project.scripts]
+zhongling-teleoperate = "lerobot_teleoperator_zhongling.teleoperate:main"
+zhongling-tune = "lerobot_teleoperator_zhongling.tune:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+servo_gui = ["static/index.html"]

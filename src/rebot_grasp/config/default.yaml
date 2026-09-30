@@ -1,0 +1,373 @@
+camera:
+  type: orbbec_gemini2
+  serial: ""  # Set locally; do not publish device identity.
+  color_width: 1280
+  color_height: 800
+  fps: 30
+  # Orbbec Viewer export. Relative paths resolve from src/rebot_grasp.
+  # Camera controls come only from this preset; no YAML value overrides it.
+  preset_json: config/camera/orbbec_gemini2_viewer.json
+  # The active YUYV stream is already geometrically corrected. Re-applying
+  # Orbbec's factory coefficients causes multi-pixel ChArUco reprojection error.
+  color_distortion_mode: zero
+
+calibration:
+  installation_id: ""  # Set locally; change after remounting or scene changes.
+  target_type: charuco
+  aruco:
+    marker_length_m: 0.1
+    dict_id: 0
+    target_marker_id: 0
+  charuco:
+    squares_x: 12
+    squares_y: 9
+    square_length_m: 0.015
+    marker_length_m: 0.01125
+    dict_id: 5
+    min_corners: 12
+    max_reprojection_rmse_px: 1.0
+  hand_eye_method: PARK
+  quality:
+    max_translation_rmse_m: 0.010
+    max_rotation_rmse_deg: 3.0
+  hand_eye_compensation_m:
+    x: 0.00
+    y: 0.0
+    # Keep calibration physical; do not hide grasp errors in global offsets.
+    z: 0.0
+
+detection:
+  conf_threshold: 0.3
+  iou_threshold: 0.45
+
+robot:
+  id: ""  # Set locally; do not publish physical device identity.
+  repo_root: ../../third_party/reBotArm_control_py
+  # One authoritative model for hand-eye FK, local IK, and gripper collision.
+  urdf_path: ../zekeep_bringup/description/urdf/sixaxis.urdf
+  # Perception candidates describe this physical grasp-center frame. They are
+  # converted through the URDF to end_effector_frame before IK and planning.
+  grasp_reference_frame: grasp_tcp
+  end_effector_frame: gripper_base
+  namespace: zekeep
+  joint_state_topic: /zekeep/joint_states
+  ros_timeout_s: 8.0
+  joint_state_max_age_s: 0.5
+  rgbd_joint_sync_tolerance_s: 0.50
+  gripper_max_width_m: 0.070
+  # Direct SDK motor coordinates must match the ROS/URDF joint convention.
+  # Keep this synchronized with zekeep_bringup/config/zekeep_hardware.yaml.
+  joint_mapping:
+    joint1: {direction: -1, gear_ratio: 1.0, encoder_zero: 0.0, model_zero: 0.0, lower: -2.58, upper: 2.58}
+    joint2: {direction: -1, gear_ratio: 1.0, encoder_zero: 0.0, model_zero: 0.0, lower: 0.0, upper: 3.70}
+    joint3: {direction: -1, gear_ratio: 1.0, encoder_zero: 0.0, model_zero: 0.0, lower: 0.0, upper: 3.70}
+    joint4: {direction: -1, gear_ratio: 1.0, encoder_zero: 0.0, model_zero: 0.0, lower: -1.57, upper: 1.57}
+    joint5: {direction: -1, gear_ratio: 1.0, encoder_zero: 0.0, model_zero: 0.0, lower: -1.57, upper: 1.57}
+    joint6: {direction: -1, gear_ratio: 1.0, encoder_zero: 0.0, model_zero: 0.0, lower: -1.57, upper: 1.57}
+  moveit:
+    # Ready motion uses OMPL joint-space planning. Short grasp approach and
+    # retreat segments remain collision-aware Cartesian paths.
+    planning_pipeline_id: ompl
+    planner_id: RRTConnect
+    planning_attempts: 10
+    planning_time_s: 8.0
+    alignment_retries: 3
+    # Only after a direct route is rejected by the captured environment cloud,
+    # transit 30 mm above pregrasp and keep pregrasp->grasp Cartesian.
+    pregrasp_collision_fallback_raise_m: 0.030
+    joint_goal_tolerance_rad: 0.005
+    max_velocity_scaling_factor: 0.45
+    max_acceleration_scaling_factor: 0.30
+    # Dense interpolation helps the exact final Cartesian segment maintain IK.
+    cartesian_max_step_m: 0.003
+    cartesian_fallback_min_fraction: 0.90
+    revolute_jump_threshold_rad: 0.25
+    max_joint_velocity_rad_s: 0.75
+    approach_max_joint_velocity_rad_s: 0.20
+    post_grasp_lift_max_joint_velocity_rad_s: 0.20
+    post_grasp_transfer_velocity_scaling_factor: 0.15
+    post_grasp_transfer_acceleration_scaling_factor: 0.10
+    execution_timeout_s: 30.0
+    placement_link_name: link6
+    # Physical tabletop footprint. The arm base is mounted 62 mm inboard from
+    # the near 900 mm edge; world->base_link supplies the installed yaw=pi.
+    worktable_width_m: 0.9
+    worktable_length_m: 1.2
+    worktable_mount_inset_m: 0.062
+    worktable_thickness_m: 0.020
+  gripper:
+    dm:
+      angle_open: 1.30
+      counterclockwise: false
+      tau_max: 1.5
+      close_torque: 1.0
+      default_force: 0.30
+      contact_torque: 0.10
+    rs:
+      angle_open: 1.30
+      counterclockwise: false
+      tau_max: 1.5
+      close_torque: 1.5
+      default_force: 0.30
+      contact_torque: 0.10
+  ready_pose:
+    # base_link -> grasp_tcp FK from the measured ROS/URDF joint state:
+    # [-0.041390419006347656, 0.697718620300293,
+    #  0.8133068084716797, -0.7553215026855469,
+    #  -0.019837379455566406, -0.02651214599609375].
+    # Computed from the synchronized six-axis model.
+    x: 0.2542153175174602
+    y: 0.006848147071277741
+    z: 0.22925405726651077
+    roll: -1.5591314277201471
+    pitch: 0.6395942614734124
+    yaw: 0.016673713583102438
+    # Slower supervised return/startup motion.
+    duration: 4.0
+
+official_sdk:
+  # Persistent SDK service owns port after ROS/process/feedback gates pass.
+  # Use motor position/velocity control for J1-J6; the gripper retains MIT.
+  # The hardware profile remains the fallback when this value is omitted.
+  arm_control_mode: posvel
+  # Initial MIT holding gains and model gravity scaling for J1-J6.
+  # These values still require supervised low-speed hardware verification.
+  mit_kp: [200, 200, 200, 54, 54, 54]
+  mit_kd: [8, 8, 8, 2, 2, 2]
+  # Negative/zero and positive model-torque scales mirror ROS MIT gravity FF.
+  gravity_tau_scale: [1.0, 1.10, 1.0, 1.0, 1.0, 1.0]
+  gravity_tau_scale_positive: [1.0, 1.10, 1.10, 1.0, 1.0, 1.0]
+  socket_path: /tmp/zekeep_sdk.sock
+  request_timeout_s: 30.0
+  tcp_frame: official_tcp
+  urdf: config/sixaxis.urdf
+  sdk_private_api_version: 1
+  ready_joints: [-0.041390419006347656, 0.697718620300293, 0.8133068084716797, -0.7553215026855469, -0.019837379455566406, -0.02651214599609375]
+  zero_pose_duration_s: 8.0
+  ready_pose: {x: 0.2542153175174602, y: 0.00684814707127781, z: 0.22925405726651077, roll: -1.5591314277201471, pitch: 0.6395942614734124, yaw: 0.016673713583102438}
+  workspace:
+    x: [0.10, 0.55]
+    y: [-0.35, 0.35]
+    z: [0.005, 0.60]
+  # User-validated TCP hard floor. Keep this synchronized with workspace.z.
+  min_tcp_z_m: 0.005
+  # Official Cartesian planning can execute a continuous segment larger than
+  # 1 rad; keep this below the full wrist range while allowing valid solutions.
+  max_segment_joint_delta_rad: 1.6
+  # Keep final pregrasp-to-grasp descent slow for supervised hardware testing.
+  segment_duration_s: 2.6666666666666665
+  # Faster ready/pregrasp and grasp/retreat Cartesian transport segments.
+  transit_duration_s: 1.6666666666666667
+
+
+
+place:
+  # Hold after closing, lift from the grasp point, move to the fixed joint
+  # target, release after a dwell, lift again, then return to ready.
+  # Both vertical lifts use MoveIt; direct joint segments skip collision checks.
+  enabled: true
+  mode: fixed_joint
+  pre_grasp_wait_s: 1.0
+  post_grasp_wait_s: 1.0
+  post_grasp_lift_m: 0.10
+  pre_release_wait_s: 1.0
+  post_release_wait_s: 1.0
+  post_release_lift_m: 0.0
+  joint_target_rad: [-1.3040743, 1.6420612, 1.3582439, -1.2678337, 0.0356684, -0.0741968]
+  joint_duration_s: 2.6666666666666665
+  return_ready_after_release: true
+  return_duration_s: 2.6666666666666665
+  # Legacy fixed-TCP placement settings, used only with mode: fixed_tcp.
+  x_m: 0.30
+  y_m: -0.30
+  tcp_rpy: [0.0, 1.5708, 0.0]
+  table_clearance_m: 0.005
+  preplace_clearance_m: 0.08
+  vertical_velocity_scaling_factor: 0.05
+  vertical_acceleration_scaling_factor: 0.05
+  placement_max_joint_velocity_rad_s: 0.05
+  release_wait_s: 0.5
+  object_height_bounds_m: [0.020, 0.060]
+  object_padding_m: 0.005
+  release_clearance_m: 0.03
+  approach_clearance_m: 0.05
+  insertion_depth_m: 0.0
+
+yolo:
+  model_name: "models/custom-segmentation.pt"
+  device: "0"
+
+grasp_pipeline:
+  infer_every_live: 3
+  # Match the official route's 25 s envelope. GraspNet gets 5 s, OBB may use
+  # the remaining candidate window, and complete MoveIt planning keeps 15 s.
+  planning_budget_s: 25.0
+  candidate_search_budget_s: 5.0
+  # Preserve time after GraspNet/OBB for validating the initial-to-grasp yaw.
+  local_yaw_reserve_s: 2.0
+  final_planning_reserve_s: 15.0
+  maximum_planning_candidates: 6
+  ik:
+    # 0806 hybrid mode: fast local IK screens candidates; final MoveIt
+    # planning still validates the selected route with TRAC-IK.
+    backend: custom
+    max_iterations: 600
+    multistart_retries: 24
+    # Candidate screening is time-bounded; other IK callers retain the full
+    # solver settings above, and MoveIt validates the final motion.
+    candidate_max_iterations: 250
+    candidate_multistart_retries: 2
+    timeout_s: 0.25
+  shape_yaw:
+    enabled: true
+    # Use the measured target major axis to build oblique OBB fallback poses.
+    # The anisotropy gate below still rejects unstable near-square masks.
+    minimum_points: 200
+    minimum_anisotropy: 1.35
+    minimum_major_span_m: 0.012
+    # Reject thin/partial depth streaks that have no measurable second dimension.
+    minimum_minor_span_m: 0.004
+  cube:
+    debug_directory: runs/grasp_debug
+    graspnet_fallback_enabled: true
+    # Detector geometry is measured, but object acceptance is not tied to 30 mm.
+    enforce_size_bounds: false
+    # Optional fixed-size gate, used only when enforce_size_bounds is true.
+    nominal_size_m: 0.030
+    relaxed_size_bounds_m: [0.022, 0.038]
+    strict_size_bounds_m: [0.025, 0.035]
+    depth_frame_count: 5
+    depth_minimum_votes: 3
+  orientation_constraints:
+    default:
+      mode: any
+      max_tilt_deg: 90.0
+    # All GraspNet poses share one pool. Collision, IK, and path feasibility
+    # decide execution; no class receives a top-down preference.
+    by_class: {}
+  grasp:
+    depth_quantile: 0.5
+    # main.py uses official-style 80 mm pregrasp/retreat segments.
+    pregrasp_offset_m: 0.080
+    # Exact-by-default contract: pregrasp_offset_m is the commanded descent.
+    # Set this true only when accepting a shorter descent is intentional.
+    allow_shorter_descent_fallback: false
+    # Optional fallbacks used only when allow_shorter_descent_fallback is true.
+    pregrasp_offset_candidates_m: [0.080, 0.050, 0.030, 0.012]
+    retreat_offset_m: 0.080
+    # Use a high translation lane, then descend to a reachable alignment height.
+    transit_clearance_m: 0.060
+    orientation_clearance_m: 0.030
+    orientation_clearance_step_m: 0.010
+    # Keep the selected grasp point at the perception center.  A nonzero
+    # insertion along an oblique approach creates lateral offset; calibrate
+    # TCP-to-grasp-center instead when a physical correction is needed.
+    insertion_depth_m: 0.0
+    # Vector from the TCP to the GraspNet grasp reference center, in local
+    # GraspNet coordinates. Calibrate before setting nonzero values.
+    tcp_to_grasp_center_m: [0.0, 0.0, 0.0]
+    # Runtime correction along each candidate's local approach/tool X axis.
+    depth_correction_candidates_m: [0.0, -0.005, 0.005, -0.010, 0.010]
+    depth_correction_max_variants: 2
+    grasp_center_xy_tolerance_m: 0.005
+    # Candidate centers stay 5-7 mm above the measured object midpoint.
+    grasp_center_min_height_offset_m: 0.005
+    grasp_center_height_tolerance_m: 0.007
+    # Exact base-Z correction applied to the measured object center. Positive
+    # raises the TCP; negative lowers it. Unsafe requests are rejected, never
+    # silently clamped to another height.
+    grasp_center_z_offset_m: 0.0
+    # Use the measured OBB center without fixed base_link X/Y compensation.
+    grasp_center_x_offset_m: 0.0
+    grasp_center_y_offset_m: 0.0
+    # Wrist roll alternatives are tried before the final straight descent.
+    local_yaw_search_deg: [0, 180, -5, 5]
+    # Near targets keep the proven top-down-first behavior. Stretched targets
+    # try an inward oblique OBB pose first to avoid wrist singularity at reach.
+    oblique_first_radius_m: 0.43
+    far_pregrasp_offset_candidates_m: [0.030, 0.012]
+    far_candidate_attempt_limit: 8
+    # Independent TCP floor. Candidate screening applies the stricter of this
+    # limit and the MoveIt-table-derived limit below.
+    min_base_z_m: 0.005
+    # The full URDF-mesh table collision check remains authoritative.
+
+safety:
+  # Strict base-link rule: allow top-down and downward-oblique grasps up to
+  # 45 degrees. Never fall back to horizontal/upward side grasps.
+  # Global upper bound. Near targets are capped to 15 degrees in the simple
+  # route.
+  max_downward_grasp_tilt_deg: 45.0
+  # SDK route mirrors the MoveIt worktable top with a swept URDF gripper check.
+  table_collision_enabled: true
+  collision_check_step_m: 0.005
+  # Eye-in-hand frames are executable only while all joints remain stable.
+  capture_stability_samples: 8
+  capture_sample_interval_s: 0.04
+  # A single Orbbec timeout/missing stream must not abort startup capture.
+  capture_frame_retries: 3
+  capture_frame_retry_interval_s: 0.05
+  capture_max_position_span_rad: 0.005
+  capture_max_velocity_rad_s: 0.02
+  # A sent trajectory is not considered complete until feedback settles.
+  motion_position_tolerance_rad: 0.005
+  motion_velocity_tolerance_rad_s: 0.03
+  motion_settle_samples: 5
+  motion_sample_interval_s: 0.05
+  motion_settle_timeout_s: 3.0
+  # Match the installed tabletop measured from the latest stable RGB-D capture.
+  # MoveIt publishes the same fixed plane.
+  table_z_m: 0.0
+  table_bin_size_m: 0.005
+  table_inlier_tolerance_m: 0.012
+  table_min_inliers: 200
+  table_max_drift_m: 0.015
+  # Hard execution floor for the complete URDF gripper mesh.  The previous
+  # 14 mm value over-filtered valid IK paths; 14 mm remains a preferred
+  # warning margin in code, while 5 mm is the minimum accepted clearance.
+  table_clearance_m: 0.005
+  table_preferred_clearance_m: 0.014
+  # Only affects the coarse TCP prefilter. The stricter min_base_z_m and the
+  # full-mesh table_clearance_m check still apply.
+  candidate_table_penetration_tolerance_m: 0.005
+  # Gemini2 depth-edge noise can exceed 1 mm; retain 4 mm around dynamic cloud.
+  # The tabletop keeps its separate, stricter 14 mm clearance.
+  environment_clearance_m: 0.004
+  # Search downward from the preferred high alignment pose until IK succeeds.
+  alignment_height_step_m: 0.020
+  # Remove only depth returns on the gripper mesh at the capture pose.
+  gripper_self_filter_distance_m: 0.015
+  environment_voxel_size_m: 0.005
+  # Only the depth-connected part of the YOLO box is removed as the target.
+  # A small dilation covers box/mask edge error without excluding the whole box.
+  target_depth_tolerance_m: 0.040
+  target_mask_dilation_px: 5
+  sweep_linear_step_m: 0.010
+  sweep_angular_step_rad: 0.10
+
+graspnet:
+  checkpoint: "checkpoint-rs.tar"
+  num_point: 20000
+  # Keep GraspNet's standard model-space collision filter.
+  collision_thresh: 0.01
+  # Small-object NMS: retain nearby grasps with meaningfully different poses.
+  nms_translation_thresh_m: 0.005
+  nms_rotation_thresh_deg: 10.0
+  min_depth: 0.05
+  max_depth: 1.2
+  top_k: 20
+  target_class: null
+  target_margin_px: 12
+  target_expand_ratio: 1.0
+  # Final grasp centers must lie in the detector mask's stable interior.
+  target_min_edge_distance_px: 6.0
+  # Preserve network confidence while preferring the mask center.
+  target_center_score_weight: 0.20
+  # Reject neighborhoods that mix target and tabletop depth.
+  target_depth_window_radius_px: 4
+  target_min_mask_support: 0.80
+  target_min_valid_depth_fraction: 0.80
+  target_max_local_depth_deviation_m: 0.005
+  target_max_center_depth_error_m: 0.015
+  # Never plan a grasp wider than the gripper's physical opening.
+  grasp_width_tolerance_m: 0.0

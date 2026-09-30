@@ -1,0 +1,48 @@
+carry_node:
+  ros__parameters:
+    # Home 位（rad），关节顺序固定为 joint1 ~ joint6。
+    home_joint_positions:
+      - -0.041390419006347656
+      - 0.697718620300293
+      - 0.8133068084716797
+      - -0.7553215026855469
+      - -0.019837379455566406
+      - -0.02651214599609375
+
+    # 运动规划与安全参数。
+    velocity_scaling: 0.40
+    acceleration_scaling: 0.15
+    planning_time: 5.0
+    cartesian_max_step: 0.01
+    hover_height: 0.05
+    position_tolerance: 0.005
+    orientation_tolerance: 0.02
+
+    # 取放点表示 base_link 坐标系中的夹爪 TCP（grasp_tcp），单位 m。
+    # pick_pose.position.z 是最终绝对高度；从 pick_above 到 pick_pose 的
+    # 实际下降量严格等于 hover_height，不完整路径会被拒绝。
+    # 两个点共用同一个竖直工具姿态，RPY 单位 rad。
+    tool_rpy:
+      roll: 0.0
+      pitch: 1.57079265
+      yaw: 1.570796327
+
+    pick_pose:
+      position:
+        x: 0.25
+        y: 0.120
+        z: 0.010
+
+    place_pose:
+      position:
+        x: 0.32
+        y: -0.20
+        z: 0.10
+
+    # 仿真夹爪位置、真机张开位置和接触检测抓取力矩。
+    gripper:
+      open_position: 0.035  # 单侧夹指张开位移，单位 m
+      close_position: 0.0   # 夹指闭合位置，单位 m
+      hardware_open_position: 1.15   #当前真机电机张开目标，单位 rad
+      closing_torque: 1.0
+      hold_torque: 0.30

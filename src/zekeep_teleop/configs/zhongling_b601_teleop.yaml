@@ -1,0 +1,64 @@
+robot:
+  type: seeed_b601_dm_follower
+  port: /dev/ttyACM0
+  id: zk_xm115
+  can_adapter: damiao
+  joint_directions:
+    shoulder_pan: 1
+    shoulder_lift: 1
+    elbow_flex: 1
+    wrist_flex: 1
+    wrist_yaw: 1
+    wrist_roll: 1
+    gripper: -1
+  joint_limits:
+    shoulder_pan: [-149.54, 149.54]
+    shoulder_lift: [-211.99, 0.0]
+    elbow_flex: [-211.99, 0.0]
+    wrist_flex: [-89.95, 89.95]
+    wrist_yaw: [-89.95, 89.95]
+    wrist_roll: [-89.95, 89.95]
+    gripper: [0.0, 85.94]
+  pos_vel_velocity: [60, 60, 60, 90, 90, 90, 120]
+  max_relative_target: null
+
+teleop:
+  type: zhongling_leader
+  port: /dev/ttyUSB0
+  id: zhongling
+  servo_ids: [1, 2, 3, 4, 5, 6, 7]
+  joint_names: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_yaw, wrist_roll, gripper]
+  # Confirmed on the physical arm. Do not restore the earlier -1 values for IDs 002/003.
+  joint_directions: [1, 1, 1, -1, -1, 1, 1]
+  # ID 003: startup PWM 2370 to PWM 1750 corresponds to -90 degrees.
+  joint_degrees_per_pwm: [null, null, 0.14754098360655737, null, null, null, null]
+  joint_ranges_deg:
+    - [-149.54, 149.54]
+    - [-265.78125, 0.0]
+    - [-211.99, 0.0]
+    - [-89.95, 89.95]
+    - [-89.95, 89.95]
+    - [-89.95, 89.95]
+    - [-85.94, 0.0]
+  pwm_ranges:
+    - [500, 1500, 2500]
+    - [500, 2400, 2500]
+    - [500, 2400, 2500]
+    - [500, 1500, 2500]
+    - [500, 1500, 2500]
+    - [500, 1500, 2500]
+    - [1300, 1500, 2500]
+  use_startup_pose_as_zero: true
+  startup_zero_check_ids: [2, 3]
+  startup_zero_tolerance_pwm: 60
+  response_wait_s: 0.0
+  torque_release_wait_s: 0.008
+  use_background_read: true
+  start_from_zero: true
+  max_step_deg: 12.0
+  max_velocity_deg_s: 360.0
+
+fps: 50
+display_data: false
+read_robot_observation: false
+loop_status_interval_s: 1.0

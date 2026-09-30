@@ -1,0 +1,38 @@
+# MoveIt 2 到 ros2_control 的轨迹控制器映射。
+# 控制器名称和关节顺序必须与 ros2_controllers.yaml 一致。
+
+trajectory_execution:
+  # 最长执行时间 = 规划时间 × 1.2 + 0.5 s。
+  allowed_execution_duration_scaling: 1.2
+  allowed_goal_duration_margin: 0.5
+  # 当前状态与轨迹起点的最大允许偏差，单位 rad。
+  allowed_start_tolerance: 0.05
+  execution_duration_monitoring: true
+
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names:
+    - zekeep_controller
+    - gripper_controller
+
+  # 六轴机械臂控制器，Action 为 /zekeep_controller/follow_joint_trajectory。
+  zekeep_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
+
+  # 夹爪控制器，负责 gripper_joint。
+  gripper_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: false
+    joints:
+      - gripper_joint

@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+web/.env
+web/.certs/
+web/node_modules/

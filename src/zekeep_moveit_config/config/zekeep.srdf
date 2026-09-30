@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<robot name="zk_xm115_00_description">
+
+  <!--  1. 规划组定义 (Planning Groups)  -->
+  <!--
+    arm 规划组：以运动链（chain）形式组织，基座为 base_link，末端法兰为 link6。
+    内部依次覆盖 6 个旋转关节（joint1 ~ joint6），作为机械臂空间轨迹规划的主体。
+  -->
+  <group name="arm">
+    <chain base_link="base_link" tip_link="link6"/>
+  </group>
+
+  <!--
+    gripper 规划组：独立管理末端执行器的开合关节 gripper_joint，实现夹爪运动的解耦控制。
+  -->
+  <group name="gripper">
+    <joint name="gripper_joint"/>
+  </group>
+
+
+  <!--  2. 命名姿态预设 (Group States)  -->
+  <!--
+    planning_initial：arm 组的预设初始姿态，各关节归零 (0.0 rad)，供仿真复位与基准规划调用。
+  -->
+  <group_state name="planning_initial" group="arm">
+    <joint name="joint1" value="0.0"/>
+    <joint name="joint2" value="0.0"/>
+    <joint name="joint3" value="0.0"/>
+    <joint name="joint4" value="0.0"/>
+    <joint name="joint5" value="0.0"/>
+    <joint name="joint6" value="0.0"/>
+  </group_state>
+
+  <!-- ready_pose：与 rebot_grasp 的 official_sdk.ready_joints 保持一致。 -->
+  <group_state name="ready_pose" group="arm">
+    <joint name="joint1" value="-0.041390419006347656"/>
+    <joint name="joint2" value="0.697718620300293"/>
+    <joint name="joint3" value="0.8133068084716797"/>
+    <joint name="joint4" value="-0.7553215026855469"/>
+    <joint name="joint5" value="-0.019837379455566406"/>
+    <joint name="joint6" value="-0.02651214599609375"/>
+  </group_state>
+
+  <!-- open：gripper 组的完全张开预设状态（行程 0.035 m） -->
+  <group_state name="open" group="gripper">
+    <joint name="gripper_joint" value="0.035"/>
+  </group_state>
+
+  <!-- closed：gripper 组的完全闭合预设状态（行程 0.0 m） -->
+  <group_state name="closed" group="gripper">
+    <joint name="gripper_joint" value="0.0"/>
+  </group_state>
+
+
+  <!--  3. 末端执行器关联 (End Effector)  -->
+  <!--
+    end_effector 标签将 gripper 组逻辑挂载至 arm 组的末端 link6 上。
+    使 MoveIt 2 在执行手臂笛卡尔空间位姿规划时，能正确计算工具坐标系（TCP）并进行全局碰撞检测。
+  -->
+  <end_effector name="gripper" parent_link="link6" group="gripper" parent_group="arm"/>
+
+
+  <!--  4. 允许碰撞矩阵 (Allowed Collision Matrix, ACM)  -->
+  <!--
+    disable_collisions 用于建立 ACM。
+    【准则】仅屏蔽物理相邻（Adjacent）或经验证绝对不可能相撞（Never）的连杆对，
+    以大幅降低规划计算开销，严禁通过增加条目掩盖机械臂本体或夹爪的真实物理干涉。
+  -->
+
+  <!-- [4.1 机械臂本体相邻连杆豁免 (Adjacent)] -->
+  <disable_collisions link1="base_link" link2="link1" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="link2" reason="Never"/>
+  <disable_collisions link1="link1" link2="link2" reason="Adjacent"/>
+  <disable_collisions link1="link2" link2="link3" reason="Adjacent"/>
+  <disable_collisions link1="link3" link2="link4" reason="Adjacent"/>
+  <disable_collisions link1="link4" link2="link5" reason="Adjacent"/>
+  <disable_collisions link1="link5" link2="link6" reason="Adjacent"/>
+  <!-- 用户确认豁免：近零位时 link1/link5 的 CAD 网格报告亚毫米级擦碰。 -->
+  <disable_collisions link1="link1" link2="link5" reason="User"/>
+
+  <!-- [4.2 末端法兰与夹爪基座连接豁免] -->
+  <disable_collisions link1="gripper_base" link2="link6" reason="Adjacent"/>
+
+  <!-- [4.3 夹爪相邻连杆及用户确认的夹指/主体接触豁免] -->
+  <disable_collisions link1="left_link" link2="gripper_base" reason="Adjacent"/>
+  <disable_collisions link1="right_link" link2="gripper_base" reason="Adjacent"/>
+  <!-- 用户确认豁免：0918 网格在夹爪全行程内报告微小接触。 -->
+  <disable_collisions link1="left_link" link2="link6" reason="User"/>
+  <disable_collisions link1="right_link" link2="link6" reason="User"/>
+</robot>

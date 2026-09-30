@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="zk_xm115_00_description">
+  
+  <material name="light_grey">
+    <color rgba="0.89804 0.91765 0.92941 1" />
+  </material>
+  <material name="dark_grey">
+    <color rgba="0.64706 0.64706 0.64706 1" />
+  </material>
+
+  <link name="base_link">
+    <inertial>
+      <origin xyz="-0.007131 0.001945 0.043144" rpy="0 0 0" />
+      <mass value="0.916" />
+      <inertia ixx="0.002185445" ixy="-0.000227209" ixz="-0.000723781" iyy="0.003441872" iyz="0.000200330" izz="0.002680529" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/base_link.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="link1">
+    <inertial>
+      <origin xyz="-0.00721199856 0.000698341 0.045955638" rpy="0 0 0" />
+      <mass value="0.735" />
+      <inertia ixx="0.000175065" ixy="0.000000212" ixz="0.000015081" iyy="0.000196979" iyz="-0.000000247" izz="0.000192343" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link1.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link1.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="link2">
+    <inertial>
+      <origin xyz="0.197269 -0.000018 -0.030544" rpy="0 0 0" />
+      <mass value="0.768" />
+      <inertia ixx="0.000476697" ixy="-0.000002947" ixz="0.000055442" iyy="0.005877765" iyz="0.000000856" izz="0.005694930" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link2.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link2.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="link3">
+    <inertial>
+      <origin xyz="0.146501 0.048525 0.030587" rpy="0 0 0" />
+      <mass value="0.859" />
+      <inertia ixx="0.000915548" ixy="0.000691174" ixz="-0.000116795" iyy="0.008789562" iyz="-0.000011161" izz="0.008645906" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link3.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link3.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="link4">
+    <inertial>
+      <origin xyz="0.056244 0.051257 0.031059" rpy="0 0 0" />
+      <mass value="0.506" />
+      <inertia ixx="0.000635492" ixy="0.000343343" ixz="-0.000002832" iyy="0.000789294" iyz="-0.000002020" izz="0.000897884" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link4.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link4.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="link5">
+    <inertial>
+      <origin xyz="-0.003856035728 -0.000000000221 -0.047059240881" rpy="0 0 0" />
+      <mass value="0.391" />
+      <inertia ixx="0.000225324549" ixy="0.000000000994" ixz="0.000053807136" iyy="0.000285103036" iyz="0.000000036977" izz="0.000227654172" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link5.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link5.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="link6">
+    <inertial>
+      <origin xyz="0.000070 0.010969 0.046197" rpy="0 0 0" />
+      <mass value="0.643" />
+      <inertia ixx="0.000609430" ixy="0.000002066" ixz="0.000000563" iyy="0.000607333" iyz="0.000071787" izz="0.000843408" />
+    </inertial>
+    <visual>
+      <!-- 只修正 J6 外壳方向，不改变夹指和 TCP 位姿 -->
+      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link6.STL" />
+      </geometry>
+      <material name="dark_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 1.5707963267948966" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/link6.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint1" type="revolute">
+    <origin xyz="0 0 0.0725" rpy="0 0 3.1416" />
+    <parent link="base_link" />
+    <child link="link1" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-2.58" upper="2.58" effort="27" velocity="8" />
+  </joint>
+  
+  <joint name="joint2" type="revolute">
+    <origin xyz="-0.016376 -0.031625 0.064309" rpy="1.5708 0 0" />
+    <parent link="link1" />
+    <child link="link2" />
+    <axis xyz="0 0 1" />
+    <limit lower="0" upper="3.7" effort="27" velocity="8" />
+  </joint>
+  
+  <joint name="joint3" type="revolute">
+    <origin xyz="0.26 0 0" rpy="3.1416 0 3.1416" />
+    <parent link="link2" />
+    <child link="link3" />
+    <axis xyz="0 0 1" />
+    <limit lower="0" upper="3.7" effort="27" velocity="8" />
+  </joint>
+  
+  <joint name="joint4" type="revolute">
+    <origin xyz="0.236 0.053693 0.00075" rpy="0 0 0" />
+    <parent link="link3" />
+    <child link="link4" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.57" upper="1.57" effort="12.5" velocity="30" />
+  </joint>
+  
+  <joint name="joint5" type="revolute">
+    <origin xyz="0.0748682393924207 0.0470000537620406 0.0308749462379592" rpy="1.57079632679489 0 3.14159265358979" />
+    <parent link="link4" />
+    <child link="link5" />
+    <axis xyz="0 0 1" />
+    <limit lower="-1.57" upper="1.57" effort="12.5" velocity="30" />
+  </joint>
+  
+  <joint name="joint6" type="revolute">
+    <origin xyz="-0.03 0 -0.04675" rpy="1.5707963267948966 0 -1.5707963267948966" />
+    <parent link="link5" />
+    <child link="link6" />
+    <axis xyz="0 0 -1" />
+    <limit lower="-1.57" upper="1.57" effort="12.5" velocity="30" />
+  </joint>
+
+  <!-- 将分散的 rod_right 和 rod_left 合并进 gripper_base，并更新质量 -->
+  <link name="gripper_base">
+    <inertial>
+      <origin xyz="0.000001 0.000001 0.005660" rpy="0 0 0" />
+      <mass value="0.021" />
+      <inertia ixx="0.000003038" ixy="0.000000679" ixz="0.0" iyy="0.000002480" iyz="0.0" izz="0.000005094" />
+    </inertial>
+    
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/gripper_base.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/gripper_base.STL" />
+      </geometry>
+    </collision>
+
+
+  </link>
+
+  <link name="right_link">
+    <inertial>
+      <origin xyz="-0.015369 -0.000001 0.088532" rpy="0 0 0" />
+      <mass value="0.045195" />
+      <inertia ixx="0.000013409" ixy="0.0" ixz="0.000002235" iyy="0.000012302" iyz="0.0" izz="0.000006864" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/right_link.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/right_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="left_link">
+    <inertial>
+      <origin xyz="0.014997 -0.000001 0.088532" rpy="0 0 0" />
+      <mass value="0.045195" />
+      <inertia ixx="0.000013409" ixy="0.0" ixz="-0.000002235" iyy="0.000012302" iyz="0.0" izz="0.000006864" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/left_link.STL" />
+      </geometry>
+      <material name="light_grey" />
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://zekeep_bringup/description/meshes/left_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="gripper_base_fixed_joint" type="fixed">
+    <origin xyz="0 0 0.056" rpy="0 0 0" />
+    <parent link="link6" />
+    <child link="gripper_base" />
+  </joint>
+  
+  <joint name="gripper_joint" type="prismatic">
+    <!-- 将 rpy 恢复为 0 0 0 -->
+    <origin xyz="0 0 -0.056" rpy="0 0 0" />
+    <parent link="gripper_base" />
+    <child link="left_link" />
+    <axis xyz="1 0 0" />
+    <limit lower="0" upper="0.035" effort="10" velocity="0.05" />
+  </joint>
+  
+  <joint name="right_joint" type="prismatic">
+    <!-- 将 rpy 恢复为 0 0 0 -->
+    <origin xyz="0 0 -0.056" rpy="0 0 0" />
+    <parent link="gripper_base" />
+    <child link="right_link" />
+    <axis xyz="-1 0 0" />
+    <limit lower="0" upper="0.035" effort="10" velocity="0.05" />
+    <mimic joint="gripper_joint" multiplier="1" offset="0" />
+  </joint>
+
+  <link name="grasp_tcp" />
+  
+  <joint name="grasp_tcp_fixed_joint" type="fixed">
+    <origin xyz="0 0 0.15539" rpy="0 -1.5708 3.1415" />
+    <parent link="link6" />
+    <child link="grasp_tcp" />
+  </joint>
+</robot>

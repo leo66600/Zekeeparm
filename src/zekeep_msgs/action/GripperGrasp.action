@@ -1,0 +1,14 @@
+float64 closing_torque
+float64 hold_torque
+float64 timeout
+---
+bool success
+bool object_detected
+float64 final_position
+float64 final_torque
+string message
+---
+float64 position
+float64 velocity
+float64 torque
+string state

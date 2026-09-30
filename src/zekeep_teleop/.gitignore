@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+build/
+dist/
+lerobot/.cache/
+
+# Runtime data and hardware-specific local files do not belong in this repo.
+calibration/
+outputs/
+datasets/
+checkpoints/
+*.bag
+*.db3
+
+# Local maintainer notes; not part of the reader-facing GitHub repository.
+constract.md

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="zk_xm115_00_description">
+  <xacro:arg name="initial_positions_file" default="$(find zekeep_moveit_config)/config/initial_positions.yaml"/>
+
+  <xacro:include filename="$(find zekeep_bringup)/description/urdf/sixaxis.urdf"/>
+  <xacro:include filename="$(find zekeep_moveit_config)/config/zekeep.ros2_control.xacro"/>
+
+  <link name="world"/>
+  <joint name="world_to_base" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 3.141592653589793"/>
+    <parent link="world"/>
+    <child link="base_link"/>
+  </joint>
+
+  <xacro:zekeep_ros2_control name="ZekeepMockSystem" initial_positions_file="$(arg initial_positions_file)"/>
+</robot>

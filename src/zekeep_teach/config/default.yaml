@@ -1,0 +1,25 @@
+teaching:
+  # Supervised keyboard tool only; these are conservative initial values.
+  sample_rate_hz: 20.0
+  replay_max_velocity_rad_s: 0.15
+  minimum_segment_s: 0.05
+  stationary_velocity_rad_s: 0.02
+  duplicate_point_distance_rad: 0.01
+  path_minimum_distance_rad: 0.002
+  # The hardware controller reports success within 0.03 rad. Keep teaching
+  # stricter while allowing the observed loaded J2 steady-state error.
+  settle_position_tolerance_rad: 0.005
+  waypoint_position_tolerance_rad: 0.005
+  settle_velocity_tolerance_rad_s: 0.015
+  settle_required_samples: 5
+  settle_sample_interval_s: 0.05
+  settle_timeout_s: 12.0
+  safe_home_timeout_s: 35.0
+  worker_stop_timeout_s: 5.0
+  output_dir: logs/teach_sessions
+
+robot:
+  namespace: zekeep
+  joint_state_topic: /zekeep/joint_states
+  ros_timeout_s: 8.0
+  joint_state_max_age_s: 0.5

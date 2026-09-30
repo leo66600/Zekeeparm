@@ -1,0 +1,19 @@
+zekeep_joystick:
+  ros__parameters:
+    arm_namespace: zekeep
+    joy_topic: /joy
+    # Zikway HID gamepad, measured with joy_node (2026-09-28).
+    # LX, LY, RY, RX, D-pad X, D-pad Y. Axes 4/5 are triggers.
+    axis_indices: [0, 1, 3, 2, 6, 7]
+    axis_signs: [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    max_speeds: [0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+    deadman_button: 6  # LB，按住运行；电机仍需手动使能。
+    close_button: 0
+    open_button: 1
+    deadzone: 0.12
+    publish_rate: 50.0
+    joy_timeout: 0.3
+    # 0 inherits the driver's grasp profile (Nm, Nm, seconds).
+    grasp_closing_torque: 0.0
+    grasp_hold_torque: 0.0
+    grasp_timeout: 0.0

@@ -1,0 +1,98 @@
+pick_and_place_node:
+  ros__parameters:
+    # =========================
+    # 1. 运动安全约束
+    # =========================
+    arm_group: arm
+    gripper_group: gripper
+    end_effector_link: link6
+    reference_frame: base_link
+    home_named_target: ready_pose
+    home_joint_names:
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
+    home_joint_positions:
+      - -0.041390419006347656
+      - 0.697718620300293
+      - 0.8133068084716797
+      - -0.7553215026855469
+      - -0.019837379455566406
+      - -0.02651214599609375
+
+    # 教学默认限速。关节速度缩放默认不超过 0.2，避免初学者误操作时动作过快。
+    velocity_scaling: 0.20
+    acceleration_scaling: 0.15
+    planning_time: 5.0
+    planning_attempts: 5
+    interface_wait_timeout: 60.0
+
+    # 笛卡尔直线插补参数。fraction 小于阈值时立即失败，不执行残缺路径。
+    cartesian_max_step: 0.01
+    cartesian_jump_threshold: 0.0
+    cartesian_min_fraction: 0.95
+    avoid_collisions: true
+
+    # 取放前后的安全抬升高度，单位 m。
+    hover_height: 0.10
+
+    # =========================
+    # 2. 固定取料点 Pick Pose
+    # 单位：position 为 m，rpy 为 rad。
+    # =========================
+    pick_pose:
+      position:
+        x: 0.280
+        y: 0.120
+        z: 0.120
+      rpy:
+        roll: 3.141592653589793
+        pitch: 0.0
+        yaw: 0.0
+
+    # =========================
+    # 3. 固定放置点 Place Pose
+    # 单位：position 为 m，rpy 为 rad。
+    # =========================
+    place_pose:
+      position:
+        x: 0.280
+        y: -0.120
+        z: 0.120
+      rpy:
+        roll: 3.141592653589793
+        pitch: 0.0
+        yaw: 0.0
+
+    # =========================
+    # 4. 夹爪控制参数
+    # sim=true  时默认走 /gripper_controller/follow_joint_trajectory。
+    # sim=false 时默认走 zekeepcontroller 的 /zekeep/gripper/open 和 /zekeep/gripper/close 服务。
+    # =========================
+    gripper:
+      joint_name: gripper_joint
+      open_named_target: open
+      close_named_target: closed
+      open_position: 0.035
+      close_position: 0.0
+      hardware_open_position: 1.30
+      hardware_close_position: 0.0
+      closing_torque: 1.0
+      hold_torque: 0.30
+      max_effort: 1.5
+      command_duration: 2.0
+      wait_timeout: 5.0
+
+    # =========================
+    # 5. ROS 接口参数
+    # =========================
+    arm_namespace: zekeep
+    sim_gripper_action: /gripper_controller/follow_joint_trajectory
+    hardware_gripper_open_service: /zekeep/gripper/open
+    hardware_gripper_close_service: /zekeep/gripper/close
+    motion_plan_service: /plan_kinematic_path
+    cartesian_path_service: /compute_cartesian_path
+    execute_trajectory_action: /execute_trajectory

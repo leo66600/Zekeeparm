@@ -1,0 +1,13 @@
+# Install in a Python 3.10 venv created with --system-site-packages.
+numpy==2.2.6
+scipy==1.15.3
+transforms3d==0.4.2
+pin==3.9.0
+# Pinocchio 3.9 wheels link the urdfdom 4 / tinyxml2 10 ABI.
+cmeel-urdfdom==4.0.1
+cmeel-tinyxml2==10.0.0
+motorbridge==0.5.1
+meshcat==0.3.2
+PyYAML==6.0.2
+matplotlib==3.10.0
+setuptools<81

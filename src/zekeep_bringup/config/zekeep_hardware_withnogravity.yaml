@@ -1,0 +1,178 @@
+# September 18 CAD frames/dynamics imported. Legacy calibration values are retained
+# for reference only; recheck motor directions, zeros, safe_home, TCP and gravity
+# compensation on hardware before authorizing motion.
+
+default_model: sixaxis
+
+models:
+  sixaxis:
+    sdk_config: rebotarm_dm.yaml
+    overrides:
+      name: SixAxis-DM-V1.2
+      urdf_path: package://zekeep_bringup/description/urdf/sixaxis.urdf
+      end_effector_frame: link6
+      channel: /dev/ttyACM0
+      rate: 500
+
+      groups:
+        arm:
+          joints: [joint1, joint2, joint3, joint4, joint5, joint6]
+        gripper:
+          joints: [gripper]
+
+      # Legacy /safe_home pose; revalidate against the September 18 model.
+      safe_home:
+        positions: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+      # Follow return pose; matches zekeep_moveit_config/config/zekeep.srdf ready_pose.
+      ready_pose:
+        positions: [-0.041390419006347656, 0.697718620300293, 0.8133068084716797, -0.7553215026855469, -0.019837379455566406, -0.02651214599609375]
+
+      hardware_revision:
+        joint1: J4340P-2EC
+        joint2: J4340P-2EC
+        joint3: J4340P-2EC
+        joint4: J4310-2EC V1.2
+        joint5: J4310-2EC V1.2
+        joint6: J4310-2EC V1.2
+        gripper: J4310-2EC V1.2
+
+      # The vendor debugging tool persists each encoder's zero at the
+      # operator-confirmed physical zero pose. ROS/model zero is therefore 0 rad.
+      joint_calibration:
+        joint1:
+          direction: -1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: -2.58
+          hard_upper: 2.58
+          max_velocity: 1.5
+        joint2:
+          direction: -1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: 0.0
+          hard_upper: 3.7
+          max_velocity: 1.5
+        joint3:
+          direction: -1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: 0.0
+          hard_upper: 3.7
+          max_velocity: 1.5
+        joint4:
+          direction: -1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: -1.57
+          hard_upper: 1.57
+          max_velocity: 1.5
+        joint5:
+          direction: -1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: -1.57
+          hard_upper: 1.57
+          max_velocity: 1.5
+        joint6:
+          direction: -1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: -1.57
+          hard_upper: 1.57
+          max_velocity: 1.5
+        gripper:
+          direction: 1
+          gear_ratio: 1.0
+          encoder_zero: 0.0
+          ros_zero: 0.0
+          hard_lower: 0.0
+          hard_upper: 1.57
+          max_velocity: 0.5
+
+      gripper:
+        position_limits:
+          # The current hardware reaches its physical open stop near 1.158 rad.
+          # Keep a small margin so normal opening is not held against the stop.
+          open: 1.15
+          close: 0.0
+        max_width_m: 0.070
+        grasp:
+          closing_torque: 1.0
+          hold_torque: 0.30
+          max_torque: 1.5
+          stall_velocity_rad_s: 0.05
+          contact_torque: 0.10
+          minimum_motion_rad: 0.30
+          hard_stop_margin_rad: 0.05
+          kp_move: 5.0
+          kd_move: 1.0
+          kd_close: 0.5
+          timeout_s: 5.0
+
+      control:
+        # Operator explicitly authorized ordinary motion on September 18.
+        motion_authorized: true  # Motor enable remains an explicit service call.
+        arm_control_mode: mit
+        allow_raw_arm_mit: false
+        mit_kp: [160.0, 240.0, 240.0, 54.0, 54.0, 54.0]
+        # Keep the wrist rigid, but restore enough damping to prevent the
+        # stop/rebound oscillation seen at trajectory waypoints.
+        mit_kd: [5.0, 5.0, 5.0, 2.0, 2.0, 2.0]
+        pos_vel:
+          joint1: {vel_kp: 0.0125, vel_ki: 0.004, pos_kp: 180.0, pos_ki: 0.5, vlim: 0.50}
+          joint2: {vel_kp: 0.0125, vel_ki: 0.004, pos_kp: 180.0, pos_ki: 0.5, vlim: 0.50}
+          joint3: {vel_kp: 0.0125, vel_ki: 0.004, pos_kp: 180.0, pos_ki: 0.5, vlim: 0.50}
+          # Retained as an explicit fallback profile; normal arm motion uses MIT.
+          joint4: {vel_kp: 0.0008, vel_ki: 0.002, pos_kp: 80.0, pos_ki: 1.0, vlim: 0.50}
+          joint5: {vel_kp: 0.0008, vel_ki: 0.002, pos_kp: 80.0, pos_ki: 1.0, vlim: 0.50}
+          joint6: {vel_kp: 0.0008, vel_ki: 0.002, pos_kp: 80.0, pos_ki: 1.0, vlim: 0.50}
+        gravity_feedforward:
+          # Enabled after supervised August 15 gravity-compensation tuning.
+          # Standard MIT hold/trajectory commands now receive model torque so
+          # loaded joints do not need a position error to resist gravity.
+          enabled: false
+          joints: [joint1, joint2, joint3, joint4, joint5, joint6]
+
+      gravity_compensation:
+        enabled: true
+        # Retained for supervised gravity-compensation service tests; standard
+        # trajectory/IK output is now separately authorized above.
+        supervised_trial_authorized: false
+        # September 18 masses/inertias have not passed hardware validation.
+        dynamics_verified: false
+        dynamics_source: package://zekeep_bringup/description/urdf/sixaxis.urdf
+        # Reset legacy empirical gains after replacing the dynamics model.
+        # Tune each axis again only from supervised measurements.
+        # Supervised August 15 tuning: add a small J2 correction and a larger
+        # J4 correction where the exported model still under-supports load.
+        tau_scale: [1.0, 1.10, 1.0, 1.10, 1.0, 1.0]
+        # Positive J3 torque retains its previous correction. Keep J4 at 1.10
+        # to avoid the upward drift observed with the previous 1.15 scale.
+        tau_scale_positive: [1.0, 1.10, 1.1, 1.10, 1.0, 1.0]
+        # Official peak torque: J4340P 27 Nm; J4310 V1.2 12.5 Nm.
+        # Rated continuous torque is 9 Nm and 3.5 Nm respectively.
+        tau_limit: [27.0, 27.0, 27.0, 12.5, 12.5, 12.5]
+        # Faster supervised ramp; still slew-limited to avoid torque steps.
+        tau_rate_limit: [20.0, 30.0, 20.0, 10.0, 10.0, 10.0]
+        # Softer wrist gains reduce manual-guidance resistance on J4-J6.
+        kp: [0.8, 0.8, 0.8, 0.2, 0.2, 0.2]
+        kd: [1.2, 1.5, 1.0, 0.4, 0.4, 0.4]
+        # J2-J4 independently latch their release poses at low speed. A faster
+        # hand push releases each latch; assist torque stays capped per joint.
+        stop_assist:
+          enabled: true
+          joints: [joint2, joint3, joint4]
+          engage_velocity: 0.03
+          release_velocity: [0.08, 0.06, 0.08]
+          # J2 releases at normal hand-guiding speed while retaining enough
+          # hysteresis above engage_velocity to avoid stop-assist chatter.
+          position_gain: [3.0, 1.5, 2.0]
+          torque_limit: [0.30, 0.15, 0.20]

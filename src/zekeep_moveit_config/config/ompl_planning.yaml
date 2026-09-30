@@ -1,0 +1,42 @@
+# MoveIt 2 的 OMPL 路径规划配置。
+planning_plugins:
+  - ompl_interface/OMPLPlanner
+
+# 规划前依次检查坐标系、工作空间、关节边界和起始碰撞。
+request_adapters:
+  - default_planning_request_adapters/ResolveConstraintFrames
+  - default_planning_request_adapters/ValidateWorkspaceBounds
+  - default_planning_request_adapters/CheckStartStateBounds
+  - default_planning_request_adapters/CheckStartStateCollision
+
+# 规划后添加时间参数、验证轨迹并发布到 RViz。
+response_adapters:
+  - default_planning_response_adapters/AddTimeOptimalParameterization
+  - default_planning_response_adapters/ValidateSolution
+  - default_planning_response_adapters/DisplayMotionPath
+
+planner_configs:
+  # 速度较快，适合交互式规划。
+  RRTConnect:
+    type: geometric::RRTConnect
+    # 0.0 表示由 OMPL 自动确定扩展步长。
+    range: 0.0
+
+  # 更重视路径优化，但通常耗时更长。
+  RRTstar:
+    type: geometric::RRTstar
+    range: 0.0
+    # 5% 概率直接向目标采样。
+    goal_bias: 0.05
+    delay_collision_checking: true
+
+arm:
+  # arm 规划组默认使用 RRTConnect。
+  default_planner_config: RRTConnect
+  planner_configs:
+    - RRTConnect
+    - RRTstar
+  optimization_objective: PathLengthOptimizationObjective
+  projection_evaluator: joints(joint1,joint2)
+  # 碰撞检查分段比例；越小越精细，但计算量越大。
+  longest_valid_segment_fraction: 0.005

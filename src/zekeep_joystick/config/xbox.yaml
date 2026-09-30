@@ -1,0 +1,14 @@
+zekeep_joystick:
+  ros__parameters:
+    arm_namespace: zekeep
+    joy_topic: /joy
+    # Xbox/Linux: LX, LY, RY, RX, D-pad X, D-pad Y.
+    axis_indices: [0, 1, 4, 3, 6, 7]
+    axis_signs: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    max_speeds: [0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+    deadman_button: 4  # LB，仅为运动许可，不会使能电机。
+    close_button: 0   # A
+    open_button: 1    # B
+    deadzone: 0.12
+    publish_rate: 50.0
+    joy_timeout: 0.3

@@ -1,0 +1,10 @@
+ZekeepController:
+  ros__parameters:
+    arm_namespace: zekeep
+    joint_state_rate: 100.0
+    cmd_arbitration: reject
+    hardware_config: ""
+    model: sixaxis
+    channel: ""
+    frame_id: base_link
+    ee_frame_id: link6

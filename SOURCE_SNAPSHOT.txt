@@ -1,0 +1,4 @@
+Snapshot mode: current runtime source, without Git history
+Scope: ROS, MoveIt, teaching, joystick, teleoperation, camera, calibration, detection and grasping
+Excluded: tests, VLA/VLM, model weights, locally identifying calibration metadata, logs, caches and build outputs
+The reBotArm SDK is fetched from its upstream repository by setup.sh.

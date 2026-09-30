@@ -1,0 +1,22 @@
+{
+  "auto_exposure_reference": 0,
+  "auto_exposure_strategy": 0,
+  "color_auto_exposure": 1,
+  "color_auto_white_balance": 1,
+  "color_backlight_compensation": 1,
+  "color_brightness": 3,
+  "color_contrast": 56,
+  "color_exposure_time": 75,
+  "color_gain": 25,
+  "color_gamma": 263,
+  "color_hue": 0,
+  "color_power_line_frequency": 3,
+  "color_saturation": 65,
+  "color_sharpness": 65,
+  "color_white_balance": 4600,
+  "depth_alg_mode": "Default",
+  "depth_auto_exposure": 0,
+  "depth_exposure_time": 7500,
+  "depth_gain": 25,
+  "target_mean_intensity": 40
+}
