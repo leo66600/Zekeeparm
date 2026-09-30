@@ -30,12 +30,16 @@ J1 `±2.58 rad`、J2/J3 `0–3.7 rad`、J4–J6 `±1.57 rad`，六轴方向均�
 joint6 零位法兰已按当前安装绕自身轴增加 `+90°`；准备位 TCP 姿态已按新 URDF FK 重算，
 关节值和方向保持不变。
 
-现有设备手眼标定已完成，以当前参数为准。仅换电脑且相机、机械臂、安装和场景不变时，
-沿用当前内参与手眼文件，并在新机执行身份确认：
 
-```bash
-python scripts/confirm_calibration.py --config config/default.yaml --confirm-same-installation
-```
+
+视觉模块运行时出现ValueError: calibration identity mismatch (camera_serial, configuration_sha256); changed device/installation requires recalibration
+为没更新身份标定   现有设备手眼标定已完成，以当前参数为准。仅换电脑且相机、机械臂、安装和场景不变时，执行
+
+cd /home/zekeep/Desktop/Zekeeparm/src/rebot_grasp
+
+python scripts/confirm_calibration.py \
+  --config config/default.yaml \
+  --confirm-same-installation
 
 该命令只打开相机，不连接机械臂，生成被 Git 忽略的 `identity.local.json`。
 默认相机序列号以 YAML 为准，不能用于不同相机。身份记录缺失或不匹配时抓取会拒绝启动；
