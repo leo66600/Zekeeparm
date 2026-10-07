@@ -22,6 +22,7 @@
 联网执行。脚本会使用 `sudo apt`，但不会安装 NVIDIA 驱动或 CUDA Toolkit，不会连接相机或机械臂，也不会使能电机。
 
 ```bash
+git clone https://github.com/leo66600/Zekeeparm.git "$HOME/Desktop/Zekeeparm"
 cd "$HOME/Desktop/Zekeeparm"
 bash setup.sh
 ```
@@ -123,4 +124,8 @@ python src/rebot_grasp/scripts/confirm_calibration.py \
 
 ## 许可
 
-`third_party/graspnet-baseline` 仅限本人或同一机构单站点的非商业内部研究，不得转让或向第三方分发。其他组件按各自许可证使用。
+本工作区仅供本人或同一机构内部非商业研究，不得用于商业用途或向第三方转让、分发。GraspNet 源码与权重另受其使用许可限制；定制 SDK 按适用许可条款使用。
+
+## 安全提示
+
+安装脚本不会安装或更换 NVIDIA 驱动，不会自动连接相机/机械臂，也不会使能电机。真机启动前先检查急停、工作空间、速度与碰撞边界。操作者需为设备运行及由此产生的损害负责。
