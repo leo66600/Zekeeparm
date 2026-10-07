@@ -31,6 +31,16 @@ bash setup.sh
 
 脚本未找到 CUDA 12.8 或可见 NVIDIA GPU 时，会跳过 GraspNet 原生扩展。完成下方 GPU 安装后重跑 `bash setup.sh`。
 
+### GraspNet 下载和编译
+
+运行 `bash setup.sh` 时，脚本会询问是否获取 GraspNet。输入 `YES` 后，脚本自动：
+
+- 克隆 `graspnet-baseline` 和 `graspnetAPI` 源码；
+- 下载 `checkpoint-rs.tar` 模型权重；
+- 在当前 GPU 上编译 `pointnet2` 和 `knn` CUDA 扩展。
+
+如果不输入 `YES`，脚本会跳过 GraspNet 源码、权重和原生扩展；基础 ROS、仿真和非 GraspNet 功能仍可安装，但视觉抓取不能运行。已存在且校验通过的文件不会重复下载。
+
 ## NVIDIA 驱动和 CUDA 12.8
 
 先查看 Ubuntu 推荐驱动，再由用户确认安装：
