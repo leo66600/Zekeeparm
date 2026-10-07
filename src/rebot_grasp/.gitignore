@@ -11,5 +11,4 @@ sdk/*
 models/
 runs/
 *.npz
-!config/calibration/orbbec_gemini2/*.npz
 *voice*

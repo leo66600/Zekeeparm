@@ -42,7 +42,7 @@ detection:
 
 robot:
   id: ""  # Set locally; do not publish physical device identity.
-  repo_root: ../../third_party/reBotArm_control_py
+  repo_root: ../../zekeeparm_SDK
   # One authoritative model for hand-eye FK, local IK, and gripper collision.
   urdf_path: ../zekeep_bringup/description/urdf/sixaxis.urdf
   # Perception candidates describe this physical grasp-center frame. They are
@@ -101,13 +101,6 @@ robot:
       counterclockwise: false
       tau_max: 1.5
       close_torque: 1.0
-      default_force: 0.30
-      contact_torque: 0.10
-    rs:
-      angle_open: 1.30
-      counterclockwise: false
-      tau_max: 1.5
-      close_torque: 1.5
       default_force: 0.30
       contact_torque: 0.10
   ready_pose:

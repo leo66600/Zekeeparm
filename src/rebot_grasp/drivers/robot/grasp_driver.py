@@ -26,12 +26,11 @@ from types import MethodType
 from typing import Any, Optional
 
 import numpy as np
-import yaml
 
 
 _CAMERAWS_ROOT = Path(__file__).resolve().parents[2]
-_REBOT_REPO_NAME = "reBotArm_control_py"
-_DEFAULT_REBOT_REPO = _CAMERAWS_ROOT.parents[1] / "third_party" / _REBOT_REPO_NAME
+_REBOT_REPO_NAME = "zekeeparm_SDK"
+_DEFAULT_REBOT_REPO = _CAMERAWS_ROOT.parents[1] / _REBOT_REPO_NAME
 
 GRIPPER_MAX_DISTANCE_M = 0.075
 GRIPPER_OPEN_POSITION_RAD = 1.5
@@ -233,7 +232,7 @@ def install_arm_joint_mapping(
 
 def _is_rebot_repo_root(path: Path) -> bool:
     return (
-        (path / "config" / "rebotarm.yaml").is_file()
+        (path / "config" / "rebotarm_dm.yaml").is_file()
         and (path / _REBOT_REPO_NAME / "actuator" / "rebotarm.py").is_file()
     )
 
@@ -247,7 +246,7 @@ def find_rebot_repo_root(hint: Optional[str] = None) -> Path:
     for candidate in (repo, repo.parent):
         if _is_rebot_repo_root(candidate):
             return candidate
-    raise FileNotFoundError(f"reBotArm_control_py repo not found: {repo}")
+    raise FileNotFoundError(f"zekeeparm_SDK repo not found: {repo}")
 
 
 def ensure_rebot_sdk_in_syspath(hint: Optional[str] = None) -> Path:
@@ -258,26 +257,9 @@ def ensure_rebot_sdk_in_syspath(hint: Optional[str] = None) -> Path:
     return repo
 
 
-def _read_yaml(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    if not isinstance(data, dict):
-        raise ValueError(f"{path} must be a YAML mapping")
-    return data
-
-
 def selected_hardware_yaml(repo_root: Optional[str] = None) -> Path:
     repo = find_rebot_repo_root(repo_root)
-    config_dir = repo / "config"
-    global_cfg = _read_yaml(config_dir / "rebotarm.yaml")
-    hw_yaml = global_cfg.get("hardware_yaml")
-    if not hw_yaml:
-        raise ValueError(f"{config_dir / 'rebotarm.yaml'} missing hardware_yaml")
-
-    hw_path = Path(str(hw_yaml))
-    if not hw_path.is_absolute():
-        hw_path = config_dir / hw_path
-    hw_path = hw_path.resolve()
+    hw_path = (repo / "config" / "rebotarm_dm.yaml").resolve()
     if not hw_path.is_file():
         raise FileNotFoundError(f"Hardware config not found: {hw_path}")
     return hw_path
@@ -290,21 +272,14 @@ def selected_arm_config(
 ) -> SelectedArmConfig:
     """Return the selected arm type and SDK controller mode.
 
-    The hardware profile supplies the safe default, while callers such as the
+    The DM profile supplies the safe default, while callers such as the
     direct SDK route may explicitly select ``mit`` or ``posvel``.
     """
-    hw_path = selected_hardware_yaml(repo_root)
-    stem = hw_path.stem.lower()
-    if stem.endswith("_dm") or stem == "dm":
-        arm_type, default_mode = "dm", "posvel"
-    elif stem.endswith("_rs") or stem == "rs":
-        arm_type, default_mode = "rs", "mit"
-    else:
-        raise ValueError(f"Cannot infer arm type from hardware config: {hw_path}")
-    mode = default_mode if controller_mode is None else str(controller_mode).lower()
+    selected_hardware_yaml(repo_root)
+    mode = "posvel" if controller_mode is None else str(controller_mode).lower()
     if mode not in ("mit", "posvel"):
         raise ValueError("controller_mode must be 'mit' or 'posvel'")
-    return SelectedArmConfig(arm_type=arm_type, controller_mode=mode)
+    return SelectedArmConfig(arm_type="dm", controller_mode=mode)
 
 
 class GraspDriver:
@@ -337,7 +312,7 @@ class GraspDriver:
         self._gripper_name = gripper_jcfgs[0].name
         self._gripper_motor: Any = None
 
-        from reBotArm_control_py.kinematics import compute_fk, load_robot_model, pad_q_for_model
+        from zekeeparm_SDK.kinematics import compute_fk, load_robot_model, pad_q_for_model
 
         self._compute_fk = compute_fk
         self._pad_q_for_model = pad_q_for_model
@@ -354,23 +329,13 @@ class GraspDriver:
             controller_mode=arm_control_mode,
         )
         defaults = {
-            "dm": {
-                "angle_open": abs(GRIPPER_OPEN_POSITION_RAD),
-                "counterclockwise": False,
-                "tau_max": 1.5,
-                "close_torque": 1.0,
-                "default_force": 0.30,
-                "contact_torque": 0.10,
-            },
-            "rs": {
-                "angle_open": abs(GRIPPER_OPEN_POSITION_RAD),
-                "counterclockwise": False,
-                "tau_max": 1.5,
-                "close_torque": 1.0,
-                "default_force": 0.30,
-                "contact_torque": 0.10,
-            },
-        }[selected.arm_type]
+            "angle_open": abs(GRIPPER_OPEN_POSITION_RAD),
+            "counterclockwise": False,
+            "tau_max": 1.5,
+            "close_torque": 1.0,
+            "default_force": 0.30,
+            "contact_torque": 0.10,
+        }
         gcfg = {**defaults, **((gripper_config or {}).get(selected.arm_type) or {})}
         motion_sign = 1.0 if bool(gcfg.get("counterclockwise")) else -1.0
         self._angle_open = -motion_sign * abs(float(gcfg["angle_open"]))

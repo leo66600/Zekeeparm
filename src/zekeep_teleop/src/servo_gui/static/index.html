@@ -1012,7 +1012,7 @@
               <strong>持久写入，掉电不丢失。</strong>
               把该关节放在正确机械零位并持续扶稳后再执行；命令会把当前物理位置直接写成目标值，
               不需要、也不要先把舵盘手动拧到目标 PWM。写入前会连续采样三次，读数跨度超过 5 会拒绝写入。
-              标定后保持释力状态，不自动恢复扭矩。
+              标定后再次发送释力，不自动恢复扭矩；无确认回包时须人工检查释力状态。
               目标读数不是 1500 的轴没有命令可用（<span class="mono">PSCK</span> 只能映射成 1500），
               只能在「舵机读数」页手动旋转舵盘对位。
             </div>
@@ -1042,6 +1042,10 @@
       <div class="dialog-field">
         <label for="write-confirm">请手动输入确认文本 <span class="mono" id="write-expected"></span></label>
         <input type="text" id="write-confirm" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="dialog-field" id="manual-release-field" hidden>
+        <label><input type="checkbox" id="manual-release-confirmed"> 我已轻转本次目标关节，确认已释力；仅在释力不回包时使用</label>
+        <p class="hint-text">不要用力扳动。此确认仅用于本次标定；标定后若无释力回包，仍须重新检查实物。</p>
       </div>
       <div class="dialog-result" id="write-result" hidden></div>
       <div class="dialog-actions">
@@ -1680,6 +1684,8 @@
 
     function openWriteDialog(descriptor) {
       state.pendingWrite = descriptor;
+      document.querySelector("#manual-release-field").hidden = descriptor.path !== "/api/calibrate_zero";
+      document.querySelector("#manual-release-confirmed").checked = false;
       elements.writeTitle.textContent = descriptor.title;
       elements.writeDescription.textContent = descriptor.description;
       elements.writeWarning.innerHTML = descriptor.warning;
@@ -1730,6 +1736,13 @@
       if (payload.ok) {
         // 成功就自动关窗；完整结果落进操作日志，关掉弹窗不会丢信息。
         const summary = descriptor.describeSuccess(payload);
+        if (payload.torque_release_acknowledged === false) {
+          showDialogResult(summary, false);
+          elements.writeExecute.disabled = true;
+          addLog(descriptor.logLine(payload), "error");
+          await descriptor.afterWrite?.(payload);
+          return;
+        }
         console.debug("[servo-gui] 写入完成", descriptor.title, summary);
         addLog(descriptor.logLine ? descriptor.logLine(payload) : `${descriptor.title} 完成`, "success");
         elements.writeDialog.close();
@@ -1837,18 +1850,23 @@
           + " 不需要先把舵盘手动拧到目标 PWM——命令会把当前位置直接定义为目标值。"
           + " 写入前连续采样三次，跨度超过 5 会拒绝；写入后以 PRAD 回读为准，"
           + " <span class=\"mono\">#OK!</span> 不作为最终验证。"
-          + " <strong>执行时扶住关节</strong>——PSCK 改的是坐标原点，舵机可能朝新坐标下的旧目标运动；"
-          + " 工具会在写入后立刻补发一次 <span class=\"mono\">PULK</span> 压住，但那一瞬间挡不住。",
+          + " <strong>执行时持续扶稳关节</strong>。工具先确认释力，PSCK 只发送一次，"
+          + " 随后约 350 ms 内每 10 ms 补发 PULK，保存后再次检查释力。"
+          + " 已在单独无负载的 007 上验证无可见转动；其他关节尚未实测，仍不能保证完全没有位移。",
         expected: `CALIBRATE ${formatId(id)} TO ${String(plan.target).padStart(4, "0")}`,
         path: "/api/calibrate_zero",
         commands: () => [`#${formatId(id)}${plan.command}!`],
-        body: ({ confirmText }) => ({ id, confirm_text: confirmText }),
+        body: ({ confirmText }) => ({ id, confirm_text: confirmText,
+          manual_release_confirmed: document.querySelector("#manual-release-confirmed").checked }),
         describeSuccess: (payload) => {
           return `标定成功：${payload.command} → ${payload.response}\n`
             + `标定前 ${payload.before} → 回读 ${payload.after}（目标 ${payload.target}，容差 ±${payload.tolerance}）\n`
-            + "已保持释力状态，未发送 PULR。";
+            + (payload.torque_release_acknowledged ? "标定后已收到释力确认，未发送 PULR。"
+              : "标定后释力无回包，扭矩状态未确认；请扶稳并重新检查实物，勿直接重试标定。");
         },
-        logLine: (payload) => `${formatId(id)} 零位标定完成，回读 ${payload.after}（目标 ${payload.target}）`,
+        logLine: (payload) => `${formatId(id)} 零位标定完成，回读 ${payload.after}（目标 ${payload.target}）`
+          + (payload.torque_release_acknowledged ? "；已收到释力确认"
+            : "；警告：标定后释力无回包，扭矩状态未确认，请扶稳并重新检查实物"),
         afterWrite: async (payload) => {
           const row = state.rows.zero.get(id);
           if (row && payload.after !== undefined && payload.after !== null) {

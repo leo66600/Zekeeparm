@@ -1,4 +1,9 @@
-Snapshot mode: current runtime source, without Git history
-Scope: ROS, MoveIt, teaching, joystick, teleoperation, camera, calibration, detection and grasping
-Excluded: tests, VLA/VLM, model weights, locally identifying calibration metadata, logs, caches and build outputs
-The reBotArm SDK is fetched from its upstream repository by setup.sh.
+Source workspace: /home/zekeep/Zekeeparm_ws
+Source branch: codex/0924
+Source HEAD: cde23b960fe338277b3b67773d4635a90f9bdb80
+Snapshot time: 2026-09-30T15:05:18+08:00
+Snapshot mode: current working tree, including tracked and untracked runtime source changes
+Git history: intentionally omitted
+Scope: ROS, MoveIt, teaching, joystick, teleoperation, camera/calibration/detection/grasping
+Excluded: language-control and embodied-learning modules, model weights, logs, caches and build outputs
+Publication: based on existing leo66600/Zekeeparm history; excludes device identity records, calibration backups, and GraspNet source copies

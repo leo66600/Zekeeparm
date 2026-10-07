@@ -191,7 +191,7 @@ class OfficialKinematics:
                 best_q = q.copy()
             if residual < tolerance:
                 return q, residual, q.copy()
-            # Match reBotArm_control_py's official damped CLIK solver:
+            # Match zekeeparm_SDK's official damped CLIK solver:
             # explicitly refresh joint Jacobians and accept only decreasing
             # steps through a short backtracking line search.
             pin.computeJointJacobians(self.model, data, q)
@@ -377,8 +377,8 @@ class OfficialSdkRobot:
         serial = self._serial_from_sdk_config()
         assert_sdk_exclusive(serial_path=serial)
         ensure_rebot_sdk_in_syspath(str(self.repo_root))
-        from reBotArm_control_py.actuator import RebotArm
-        from reBotArm_control_py.controllers import RebotArmEndPose
+        from zekeeparm_SDK.actuator import RebotArm
+        from zekeeparm_SDK.controllers import RebotArmEndPose
 
         self._arm = RebotArm()
         if hw.controller_mode == "mit":

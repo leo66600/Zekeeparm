@@ -1,61 +1,34 @@
-# 六轴全栈具身机器人学习平台 --ZK-EM600擎栈
+# Zekeeparm
 
-面向 Ubuntu 22.04 x86_64、ROS 2 Humble、Python 3.10 的zekeeparm运行与集成工作区。覆盖 ROS 控制、MoveIt、示教、手柄、视觉抓取和独立主从遥操作。
+六轴机械臂独立运行包。目标平台固定为 Ubuntu 22.04 x86_64、ROS 2 Humble、Python 3.10。
 
-## 能力
+包含：
 
-| 模块 | 能力 | 路径 |
-|---|---|---|
-| Bringup 与硬件控制 | 真机、RViz、网页、硬件抽象、状态机、ROS 服务和轨迹 Action | [`src/zekeep_bringup`](src/zekeep_bringup)、[`src/zekeepcontroller`](src/zekeepcontroller) |
-| ROS 接口与规划 | 自定义消息/服务/Action、MoveIt 配置 | [`src/zekeep_msgs`](src/zekeep_msgs)、[`src/zekeep_moveit_config`](src/zekeep_moveit_config) |
-| 示教与手柄 | 重力补偿拖动示教、轨迹复现、六轴与末端遥控 | [`src/zekeep_teach`](src/zekeep_teach)、[`src/zekeep_joystick`](src/zekeep_joystick) |
-| 视觉抓取 | 相机、当前内参与手眼标定、检测、GraspNet 抓取 | [`src/rebot_grasp`](src/rebot_grasp) |
-| LeRobot 遥操作 | 独立 Python/Conda 主从遥操作环境 | [`src/zekeep_teleop`](src/zekeep_teleop) |
-| 定制 SDK | 独立仓库维护，安装固定到 `v0.1.0` | [Zekeep_control_py](https://github.com/leo66600/Zekeep_control_py) |
+- `zekeep_bringup`：模型、硬件参数、真机、RViz 和网页启动文件。
+- `zekeepcontroller`：硬件抽象、状态机、ROS 服务和轨迹 Action。
+- `zekeep_msgs`：自定义消息、服务和 Action。
+- `zekeep_moveit_config`：MoveIt 配置。
+- `zekeep_teach`：重力补偿拖动示教和轨迹复现。
+- `zekeep_joystick`：六轴关节及末端手柄控制。
+- `rebot_grasp`：相机、当前标定、检测和抓取。
+- `zekeep_teleop`：独立 LeRobot 主从遥操作。
+- `zekeeparm_SDK`：机械臂 SDK，仅保留 DM 硬件配置。
+- GraspNet：安装者接受许可限制后从官方仓库获取源码，不随本仓库分发。
 
-集成布局：ROS 包置于 `src/`；安装与构建脚本置于 `tools/` 和根目录；定制 SDK 独立仓库维护；各模块说明置于对应包内。
+包含已有检查脚本。不包含语言控制、具身学习、数据采集模块、模型权重、日志、缓存和构建产物。
 
 ## 一键安装
 
 联网执行。脚本会使用 `sudo apt`，但不会安装 NVIDIA 驱动或 CUDA Toolkit，不会连接相机或机械臂，也不会使能电机。
 
 ```bash
-git clone https://github.com/leo66600/Zekeeparm.git "$HOME/Desktop/Zekeeparm"
 cd "$HOME/Desktop/Zekeeparm"
 bash setup.sh
 ```
 
-脚本安装 ROS、SDK、视觉环境、YOLOE 所需的 CLIP 文本组件和 LeRobot 遥操作环境，不下载模型权重。GraspNet 源码仅在用户明确接受其非商业内部研究许可后获取。中断后可直接重跑。
-
-视觉检测保留原工作区的 YOLOE-26l 开放词汇分割功能，可通过 `yolo.custom_classes` 或 `--target-class` 指定目标名称。仅恢复此功能及其 CLIP 依赖，不包含其他 VLA/VLM 研究模块。权重不随仓库分发。
+脚本安装 ROS、SDK、视觉环境、LeRobot 遥操作环境，并下载模型权重。GraspNet 源码和权重下载前必须确认仅用于本人或同机构内部非商业研究。中断后可直接重跑。
 
 脚本未找到 CUDA 12.8 或可见 NVIDIA GPU 时，会跳过 GraspNet 原生扩展。完成下方 GPU 安装后重跑 `bash setup.sh`。
-
-## 视觉权重下载
-
-使用原配置对应的两个官方文件，不要下载普通 YOLO26、YOLO11 或 `-seg-pf.pt` 代替：
-
-- [yoloe-26l-seg.pt](https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26l-seg.pt)：放到 `src/rebot_grasp/models/yoloe-26l-seg.pt`，保持原文件名。
-- [mobileclip2_b.ts](https://github.com/ultralytics/assets/releases/download/v8.4.0/mobileclip2_b.ts)：放到 `src/rebot_grasp/mobileclip2_b.ts`。
-
-```bash
-cd "$HOME/Desktop/Zekeeparm/src/rebot_grasp"
-mkdir -p models
-curl -fL --retry 3 -o models/yoloe-26l-seg.pt \
-  https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26l-seg.pt
-curl -fL --retry 3 -o mobileclip2_b.ts \
-  https://github.com/ultralytics/assets/releases/download/v8.4.0/mobileclip2_b.ts
-```
-
-运行视觉入口时保持当前目录为 `src/rebot_grasp`，文本编码器从当前目录加载；未提前放置时，首次设置检测类别会联网自动下载。YOLOE-26 需要 Ultralytics 8.4.0 及以上，本包固定为 8.4.35。说明见 [Ultralytics YOLOE 官方文档](https://docs.ultralytics.com/models/yoloe/)。
-
-这两个文件只用于检测与分割。完整抓取还需下载当前配置使用的 GraspNet **`checkpoint-rs.tar`**：
-
-- [官方 Google Drive 下载](https://drive.google.com/file/d/1hd0G8LN6tRpi4742XOTEisbTXNZ-1jmk/view?usp=sharing)
-- [官方百度网盘备用入口](https://pan.baidu.com/s/1Eme60l39tTZrilF0I86R5A)
-- [官方权重说明与许可](https://github.com/graspnet/graspnet-baseline#training-and-testing)
-
-下载后放到工作区的 `third_party/graspnet-baseline/checkpoints/checkpoint-rs.tar`，保持文件名，**不要解压**。当前 `src/rebot_grasp/config/default.yaml` 的 `graspnet.checkpoint` 已设置为 `checkpoint-rs.tar`，无需修改。该权重使用 RealSense 数据训练，和 `checkpoint-kn.tar`（Kinect 数据）不是同一文件。安装脚本在接受许可后获取 GraspNet 源码和构建 CUDA 扩展，不下载权重；使用前须阅读并遵守官方许可。
 
 ## NVIDIA 驱动和 CUDA 12.8
 
@@ -135,20 +108,19 @@ cd "$HOME/Desktop/Zekeeparm/src/zekeep_teleop"
 
 ## 标定边界
 
-仓库包含当前相机内参与手眼标定数据，不包含本地身份标识。先在本机配置 `src/rebot_grasp/config/default.yaml` 中的相机序列号、机械臂 ID 和安装 ID，再确认并生成本地身份文件：
+包含当前 `intrinsics.npz` 和 `hand_eye.npz`，不包含本地设备身份记录或标定历史备份。这些标定不能证明目标电脑或现场已经验证。设备、安装位置或场景变化后必须重新标定；完全未变化时也应先执行相机身份确认：
 
 ```bash
+conda activate rebotarm
 cd "$HOME/Desktop/Zekeeparm"
-conda run -n rebotarm python src/rebot_grasp/scripts/confirm_calibration.py \
+python src/rebot_grasp/scripts/confirm_calibration.py \
   --config src/rebot_grasp/config/default.yaml --confirm-same-installation
 ```
 
-该命令只打开相机，不连接或使能机械臂。设备、安装位置或场景变化后必须重新标定。`identity.local.json` 会被 Git 忽略。完整硬件安全说明见各包 README。
+公开仓库的 `config/default.yaml` 中设备身份字段留空。确认前请在 `src/rebot_grasp/config/default.yaml` 填写实际 `camera.serial`、`robot.id` 和 `calibration.installation_id`。
+
+该命令只打开相机，不连接或使能机械臂。完整硬件安全说明见各包 README。
 
 ## 许可
 
-本工作区仅供本人或同一机构内部非商业研究，不得用于商业用途或向第三方转让、分发。GraspNet 源码与权重另受其使用许可限制；定制 SDK 按适用许可条款使用。
-
-## 安全提示
-
-安装脚本不会安装或更换 NVIDIA 驱动，不会自动连接相机/机械臂，也不会使能电机。真机启动前先检查急停、工作空间、速度与碰撞边界。操作者需为设备运行及由此产生的损害负责。
+`third_party/graspnet-baseline` 仅限本人或同一机构单站点的非商业内部研究，不得转让或向第三方分发。其他组件按各自许可证使用。

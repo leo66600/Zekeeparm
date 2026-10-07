@@ -1,0 +1,3 @@
+a612d2d505f24e14d87ec82d688b823b6cb600646664f16125ce6c84ce360da9  src/rebot_grasp/models/yoloe-26l-seg.pt
+35d7f213e4d75f38514e4656ad3cb91158bd33e3805d8ac349f23b186f66982f  src/rebot_grasp/mobileclip2_b.ts
+60680087c61cba2b6791614fef1519071e294f6dcaf99b3f581bb95f7c51a868  third_party/graspnet-baseline/checkpoints/checkpoint-rs.tar

@@ -1,0 +1,21 @@
+[project]
+name = "zekeeparm-sdk"
+version = "0.1.0"
+description = "Zekeeparm Python control SDK for Damiao motors"
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "meshcat>=0.3.2",
+    "pin>=3.9.0",
+    "numpy>=1.23.4",
+    "pyyaml>=6.0",
+    "matplotlib>=3.10.0",
+    "motorbridge>=0.4.9",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["zekeeparm_SDK*"]

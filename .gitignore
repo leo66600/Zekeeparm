@@ -11,11 +11,20 @@ __pycache__/
 *.o
 *.a
 *.local.yaml
-*.local.json
 node_modules/
 src/rebot_grasp/logs/
 src/rebot_grasp/data/
+src/zekeep_teach/logs/
+
+
+# Local assets excluded from the public source repository.
+*.local.json
+.env
+.env.*
+*.pem
+*.key
 src/rebot_grasp/models/*.pt
 src/rebot_grasp/mobileclip*.ts
-third_party/graspnet-baseline/checkpoints/
-src/zekeep_teach/logs/
+src/rebot_grasp/config/calibration/backups/
+third_party/graspnet-baseline/
+MANIFEST.sha256

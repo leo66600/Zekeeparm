@@ -166,18 +166,18 @@ No new third-party dependency is introduced.
 
 ```bash
 # Build ROS packages after controller/client interface changes
-cd "$HOME/Desktop/Zekeeparm"
+cd /home/zekeep/Zekeeparm_ws
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install --packages-select zekeepcontroller zekeep_bringup zekeep_teach
 
 # Start the ROS hardware controller
-cd "$HOME/Desktop/Zekeeparm"
+cd /home/zekeep/Zekeeparm_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ros2 launch zekeep_bringup bringup.launch.py use_rviz:=true
 
 # Run the supervised teaching tool
-cd "$HOME/Desktop/Zekeeparm"
+cd /home/zekeep/Zekeeparm_ws
 source install/setup.bash
 ros2 run zekeep_teach teach_replay
 ```

@@ -21,36 +21,31 @@ step() {
   printf '\n== %s ==\n' "$*"
 }
 
+download_checked() {
+  local url="$1" destination="$2" expected="$3" temporary
+  mkdir -p "$(dirname -- "$destination")"
+  if [[ -f "$destination" ]] && printf '%s  %s\n' "$expected" "$destination" | sha256sum -c - >/dev/null 2>&1; then
+    printf '已存在：%s\n' "$destination"
+    return
+  fi
+  temporary="$(mktemp "${destination}.part.XXXXXX")"
+  if ! curl -fL --retry 3 --retry-delay 2 -o "$temporary" "$url"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+  if ! printf '%s  %s\n' "$expected" "$temporary" | sha256sum -c -; then
+    rm -f -- "$temporary"
+    die "下载文件校验失败：$destination"
+  fi
+  mv -f -- "$temporary" "$destination"
+}
+
 [[ "$(uname -m)" == "x86_64" ]] || die "只支持 x86_64"
 source /etc/os-release
 [[ "${ID:-}" == "ubuntu" && "${VERSION_ID:-}" == "22.04" ]] || die "只支持 Ubuntu 22.04"
 [[ ${EUID} -ne 0 ]] || die "请用普通用户运行，脚本会在需要时调用 sudo"
 setup_temp_dir="$(mktemp -d)"
 trap 'rm -rf -- "$setup_temp_dir"' EXIT
-
-step "获取 Zekeep SDK"
-sdk_dir="$workspace_dir/third_party/reBotArm_control_py"
-sdk_url="https://github.com/leo66600/Zekeep_control_py.git"
-sdk_ref="v0.1.0"
-if [[ -d "$sdk_dir/.git" ]]; then
-  if [[ -n "$(git -C "$sdk_dir" status --porcelain)" ]]; then
-    die "SDK Git 工作区有未提交改动；先备份或提交后再安装固定版本 $sdk_ref"
-  fi
-  if git -C "$sdk_dir" remote get-url origin >/dev/null 2>&1; then
-    git -C "$sdk_dir" remote set-url origin "$sdk_url"
-  else
-    git -C "$sdk_dir" remote add origin "$sdk_url"
-  fi
-  git -C "$sdk_dir" fetch --depth 1 origin "refs/tags/$sdk_ref"
-  git -C "$sdk_dir" checkout --detach FETCH_HEAD
-elif [[ -f "$sdk_dir/pyproject.toml" ]]; then
-  printf '使用包内 SDK 源码：%s\n' "$sdk_dir"
-elif [[ ! -e "$sdk_dir" ]]; then
-  mkdir -p "$workspace_dir/third_party"
-  git clone --depth 1 --branch "$sdk_ref" "$sdk_url" "$sdk_dir"
-else
-  die "SDK 路径存在但内容不完整：$sdk_dir"
-fi
 
 step "安装 ROS 2 Humble 和系统依赖"
 sudo apt-get update
@@ -90,7 +85,7 @@ source "$workspace_dir/.venv-ros/bin/activate"
 export PYTHONNOUSERSITE=1
 python -m pip install --upgrade pip
 python -m pip install -r "$workspace_dir/tools/requirements-ros-sdk.txt"
-python -m pip install --no-deps -e "$workspace_dir/third_party/reBotArm_control_py"
+python -m pip install --no-deps -e "$workspace_dir/zekeeparm_SDK"
 cd "$workspace_dir"
 ros_build_dir="$setup_temp_dir/ros-build"
 python -m colcon --log-base "$ros_build_dir/log" build \
@@ -127,28 +122,46 @@ fi
   --index-url https://download.pytorch.org/whl/cu128 \
   --extra-index-url https://pypi.org/simple
 "$conda_exe" run -n rebotarm python -m pip install \
-  -c "$workspace_dir/tools/constraints-vision.txt" \
   ftfy regex tqdm "git+https://github.com/ultralytics/CLIP.git@c4b6ea0932a2c0f39a0fa528af5ec4982ff15cab"
-"$conda_exe" run -n rebotarm python -m pip install --no-deps -e "$workspace_dir/third_party/reBotArm_control_py"
+"$conda_exe" run -n rebotarm python -m pip install --no-deps -e "$workspace_dir/zekeeparm_SDK"
 "$conda_exe" run -n rebotarm python -m pip install --force-reinstall --no-deps opencv-contrib-python==4.7.0.72
+
+step "下载视觉模型"
+download_checked \
+  https://github.com/ultralytics/assets/releases/download/v8.4.0/yoloe-26l-seg.pt \
+  "$workspace_dir/src/rebot_grasp/models/yoloe-26l-seg.pt" \
+  a612d2d505f24e14d87ec82d688b823b6cb600646664f16125ce6c84ce360da9
+download_checked \
+  https://github.com/ultralytics/assets/releases/download/v8.4.0/mobileclip2_b.ts \
+  "$workspace_dir/src/rebot_grasp/mobileclip2_b.ts" \
+  35d7f213e4d75f38514e4656ad3cb91158bd33e3805d8ac349f23b186f66982f
 
 graspnet_accepted=${ACCEPT_GRASPNET_LICENSE:-}
 if [[ "$graspnet_accepted" != YES ]]; then
-  printf '%s\n' 'GraspNet 源码和权重仅限本人或同一机构单站点的非商业内部研究，禁止转让或向第三方分发。'
-  if ! read -r -p '接受 GraspNet 许可并从官方仓库获取源码？输入 YES：' graspnet_accepted; then
+  printf '%s\n' 'GraspNet 仅限本人或同一机构单站点的非商业内部研究，禁止转让或向第三方分发。'
+  if ! read -r -p '接受上述限制并获取 GraspNet 源码和权重？输入 YES：' graspnet_accepted; then
     graspnet_accepted=NO
   fi
 fi
 if [[ "$graspnet_accepted" == YES ]]; then
-  if [[ ! -d "$workspace_dir/third_party/graspnet-baseline/.git" ]]; then
+  mkdir -p "$workspace_dir/third_party"
+  if [[ ! -d "$workspace_dir/third_party/graspnet-baseline" ]]; then
     git clone --depth 1 https://github.com/graspnet/graspnet-baseline.git \
       "$workspace_dir/third_party/graspnet-baseline"
+  fi
+  if [[ ! -d "$workspace_dir/third_party/graspnet-baseline/graspnetAPI" ]]; then
+    git clone --depth 1 https://github.com/graspnet/graspnetAPI.git \
+      "$workspace_dir/third_party/graspnet-baseline/graspnetAPI"
   fi
   "$conda_exe" run -n rebotarm python -m pip install \
     -c "$workspace_dir/tools/constraints-vision.txt" --no-build-isolation \
     "$workspace_dir/third_party/graspnet-baseline/graspnetAPI"
+  download_checked \
+    'https://drive.usercontent.google.com/download?id=1hd0G8LN6tRpi4742XOTEisbTXNZ-1jmk&export=download&confirm=t' \
+    "$workspace_dir/third_party/graspnet-baseline/checkpoints/checkpoint-rs.tar" \
+    60680087c61cba2b6791614fef1519071e294f6dcaf99b3f581bb95f7c51a868
 else
-  printf '%s\n' '已跳过 GraspNet 源码和原生扩展。'
+  printf '%s\n' '已跳过 GraspNet 源码、权重和原生扩展。'
 fi
 
 step "创建 LeRobot 遥操作环境"

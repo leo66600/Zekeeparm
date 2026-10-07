@@ -1,6 +1,10 @@
-# Zekeep reBotArm Python SDK 安装
+# Zekeeparm Python SDK 安装
 
-安装脚本从 [Zekeep_control_py](https://github.com/leo66600/Zekeep_control_py) 的 `v0.1.0` 标签获取 SDK 到 `third_party/reBotArm_control_py`。该版本适配本工作区；Python 导入名仍为 `reBotArm_control_py`。使用 SDK 时遵守适用许可条款。控制接口由 Python 提供；Pinocchio 等依赖包含 C++ 原生库。
+工作区随附 SDK 源码：`zekeeparm_SDK`。控制接口由 Python 提供；Pinocchio 等依赖包含 C++ 原生库。
+
+SDK 仅保留 `config/rebotarm_dm.yaml`，默认直接读取 DM 配置。
+Python 导入统一为 `zekeeparm_SDK`；`RebotArm`、`RebotArmEndPose` 等类名保持不变。
+旧环境迁移时，先执行 `python -m pip uninstall rebotarm-control-py`，再按下方步骤安装新包。
 
 ## 功能特性
 
@@ -31,7 +35,7 @@ cd "$ZKEEP_WS"
 source .venv-ros/bin/activate
 export PYTHONNOUSERSITE=1
 python -m pip install -r tools/requirements-ros-sdk.txt
-python -m pip install --no-deps -e third_party/reBotArm_control_py
+python -m pip install --no-deps -e zekeeparm_SDK
 source tools/activate_ros.sh
 ```
 
@@ -44,7 +48,7 @@ source tools/activate_ros.sh
 ```bash
 cd "$ZKEEP_WS"
 conda activate rebotarm
-python -m pip install --no-deps -e third_party/reBotArm_control_py
+python -m pip install --no-deps -e zekeeparm_SDK
 ```
 
 视觉环境使用 NumPy 1.26.4；ROS venv 使用 NumPy 2.2.6。不要 source ROS venv，也不要把视觉依赖装进 ROS venv。
@@ -63,10 +67,10 @@ ROS 环境：
 source "$ZKEEP_WS/tools/activate_ros.sh"
 python -c '
 import rclpy, pinocchio, motorbridge, numpy
-from reBotArm_control_py.actuator import RebotArm
-from reBotArm_control_py.controllers import RebotArmEndPose
-from reBotArm_control_py.dynamics import compute_generalized_gravity
-from reBotArm_control_py.kinematics import compute_fk
+from zekeeparm_SDK.actuator import RebotArm
+from zekeeparm_SDK.controllers import RebotArmEndPose
+from zekeeparm_SDK.dynamics import compute_generalized_gravity
+from zekeeparm_SDK.kinematics import compute_fk
 '
 ```
 
@@ -76,10 +80,10 @@ from reBotArm_control_py.kinematics import compute_fk
 conda activate rebotarm
 python -c '
 import pinocchio, motorbridge, numpy
-from reBotArm_control_py.actuator import RebotArm
-from reBotArm_control_py.controllers import RebotArmEndPose
-from reBotArm_control_py.dynamics import compute_generalized_gravity
-from reBotArm_control_py.kinematics import compute_fk
+from zekeeparm_SDK.actuator import RebotArm
+from zekeeparm_SDK.controllers import RebotArmEndPose
+from zekeeparm_SDK.dynamics import compute_generalized_gravity
+from zekeeparm_SDK.kinematics import compute_fk
 '
 ```
 
@@ -87,7 +91,13 @@ from reBotArm_control_py.kinematics import compute_fk
 
 ```bash
 python -c 'import sys; print(sys.executable)'
-python -m pip show rebotarm-control-py motorbridge pin
+python -m pip show zekeeparm-sdk motorbridge pin
+```
+
+检查所有 SDK 模块、唯一 DM 配置和模型路径（不连接硬件）：
+
+```bash
+python -B tools/check_sdk.py
 ```
 
 ## 项目使用
@@ -100,9 +110,9 @@ python -m pip show rebotarm-control-py motorbridge pin
 ## SDK 目录
 
 ```text
-third_party/reBotArm_control_py/
+zekeeparm_SDK/
 ├── config/                  # SDK 硬件配置
-└── reBotArm_control_py/
+└── zekeeparm_SDK/
     ├── actuator/            # 电机连接与控制循环
     ├── controllers/         # 末端控制器
     ├── dynamics/            # 动力学计算

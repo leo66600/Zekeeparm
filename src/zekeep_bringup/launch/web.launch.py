@@ -19,9 +19,12 @@ def generate_launch_description():
                 AnyLaunchDescriptionSource(rosbridge_launch),
                 launch_arguments={
                     "port": "9090", "address": "127.0.0.1",
-                    "topics_glob": "[/zekeep/*,/joint_states,/tf,/tf_static]",
-                    "services_glob": "[/zekeep/*,/rosapi/*]",
-                    "params_glob": "[/__web_parameters_disabled__]",
+                    # XML launch evaluates parameter values as YAML; keep globs as strings.
+                    "topics_glob": "'[/zekeep/*,/joint_states,/tf,/tf_static]'",
+                    "services_glob": "'[/zekeep/*,/rosapi/*]'",
+                    "params_glob": "'[/__web_parameters_disabled__]'",
+                    "call_services_in_new_thread": "true",
+                    "send_action_goals_in_new_thread": "true",
                 }.items(),
             ),
             ExecuteProcess(

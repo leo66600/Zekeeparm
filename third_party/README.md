@@ -1,5 +1,5 @@
 # 外部依赖
 
-`reBotArm_control_py` 在安装时从 [Zekeep_control_py](https://github.com/leo66600/Zekeep_control_py) 的 `v0.1.0` 标签获取。请按适用许可条款使用。
+机械臂 SDK 源码随工作区提供于 `zekeeparm_SDK`。
 
-GraspNet 源码仅在安装者接受其非商业内部研究限制后由安装脚本获取；模型权重不提供、不下载。
+GraspNet 源码不随本仓库分发。安装者接受其非商业内部研究限制后，`setup.sh` 从官方 `graspnet/graspnet-baseline` 和 `graspnet/graspnetAPI` 仓库获取源码，并下载经过 SHA-256 校验的模型权重。请按适用许可条款使用。

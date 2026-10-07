@@ -30,7 +30,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE_ROOT = PROJECT_ROOT.parents[1]
-SDK_ROOT = WORKSPACE_ROOT / "third_party" / "reBotArm_control_py"
+SDK_ROOT = WORKSPACE_ROOT / "zekeeparm_SDK"
 CONTROLLER_ROOT = WORKSPACE_ROOT / "src" / "zekeepcontroller"
 
 for path in (PROJECT_ROOT, SDK_ROOT, CONTROLLER_ROOT):

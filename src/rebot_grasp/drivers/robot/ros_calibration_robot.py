@@ -108,7 +108,7 @@ def make_ros_calibration_robot(
 ) -> RosCalibrationRobot:
     """Build a calibration adapter using the same FK frame as grasp runtime."""
     ensure_rebot_sdk_in_syspath(robot_cfg.get("repo_root"))
-    from reBotArm_control_py.kinematics import (
+    from zekeeparm_SDK.kinematics import (
         compute_fk,
         load_robot_model,
         pad_q_for_model,

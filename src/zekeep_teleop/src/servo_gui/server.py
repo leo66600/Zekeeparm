@@ -44,7 +44,7 @@ def _http_status(result: dict[str, Any]) -> int:
         return 409
     if code == "timeout":
         return 504
-    if code in {"no_response", "id_write_failed", "boot_release_failed", "pwm_out_of_tolerance"}:
+    if code in {"no_response", "id_write_failed", "boot_release_failed", "pwm_out_of_tolerance", "torque_release_failed"}:
         return 502
     return 503
 
@@ -84,7 +84,7 @@ def make_handler(worker: BusWorker, simulate: bool) -> type[BaseHTTPRequestHandl
                 return self._send_json(400, {"error": str(exc)})
             write_fields = {
                 "/api/set_id": {"source_id", "target_id", "confirm_text", "auto_release_on_boot"},
-                "/api/calibrate_zero": {"id", "confirm_text"},
+                "/api/calibrate_zero": {"id", "confirm_text", "manual_release_confirmed"},
                 "/api/startup_torque": {"id", "mode", "confirm_text"},
             }
             if path in write_fields and body.keys() - write_fields[path]:
@@ -100,7 +100,8 @@ def make_handler(worker: BusWorker, simulate: bool) -> type[BaseHTTPRequestHandl
                                                        body.get("confirm_text", ""),
                                                        body.get("auto_release_on_boot", True)),
                 "/api/calibrate_zero": lambda: worker.calibrate_zero(body.get("id"),
-                                                                       body.get("confirm_text", "")),
+                                                                       body.get("confirm_text", ""),
+                                                                       manual_release_confirmed=body.get("manual_release_confirmed", False)),
                 "/api/startup_torque": lambda: worker.startup_torque(body.get("id"), body.get("mode", ""),
                                                                        body.get("confirm_text", "")),
             }

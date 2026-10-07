@@ -35,18 +35,17 @@ def resolve_hardware_config(
 def _workspace_root() -> Path:
     here = Path(__file__).resolve()
     for parent in here.parents:
-        if (parent / "third_party" / "reBotArm_control_py").is_dir():
+        if (parent / "zekeeparm_SDK").is_dir():
             return parent
     return here.parents[3]
 
 
 def _ensure_rebot_sdk_in_syspath() -> Path:
-    root = _workspace_root() / "third_party" / "reBotArm_control_py"
-    if not (root / "reBotArm_control_py").is_dir():
+    root = _workspace_root() / "zekeeparm_SDK"
+    if not (root / "zekeeparm_SDK").is_dir():
         raise FileNotFoundError(
-            f"Cannot find reBotArm_control_py at {root}. Clone it first:\n"
-            "  git clone https://github.com/vectorBH6/reBotArm_control_py.git "
-            "third_party/reBotArm_control_py"
+            f"Cannot find zekeeparm_SDK at {root}. "
+            "Restore zekeeparm_SDK from the workspace bundle."
         )
     root_str = str(root)
     if root_str not in sys.path:
@@ -387,8 +386,8 @@ def _write_resolved_hardware_config(model: str, data: dict[str, Any]) -> Path:
 
 
 def _sync_sdk_robot_model_config(data: dict[str, Any]) -> None:
-    import reBotArm_control_py.kinematics.robot_model as robot_model
-    import reBotArm_control_py.dynamics.robot_model as dynamics_model
+    import zekeeparm_SDK.kinematics.robot_model as robot_model
+    import zekeeparm_SDK.dynamics.robot_model as dynamics_model
 
     robot_model._hw_cfg_cache = copy.deepcopy(data)
     dynamics_model._CACHED_MODEL = None

@@ -4,8 +4,8 @@ Zekeep 直接 SDK 视觉抓取、RGB-D 相机与标定工具。
 
 ## 环境与启动
 
-先按[工作区安装说明](../../README.md#一键安装)准备视觉环境、SDK 和 CUDA 扩展，
-再按[视觉权重下载说明](../../README.md#视觉权重下载)准备 YOLOE-26l 和 MobileCLIP 文件。设置 `ZKEEP_WS` 为实际工作区绝对路径，
+先按[安装说明](../../docs/INSTALL_PORTABLE.md)准备视觉环境、Orbbec SDK、模型权重和 CUDA 扩展，
+再按[SDK 安装说明](../../docs/SDK_INSTALL.md)安装 reBotArm SDK。设置 `ZKEEP_WS` 为实际工作区绝对路径，
 使用独立 `rebotarm` 环境，不把视觉 NumPy 约束安装进 ROS venv。
 
 主抓取入口：
@@ -30,16 +30,12 @@ J1 `±2.58 rad`、J2/J3 `0–3.7 rad`、J4–J6 `±1.57 rad`，六轴方向均�
 joint6 零位法兰已按当前安装绕自身轴增加 `+90°`；准备位 TCP 姿态已按新 URDF FK 重算，
 关节值和方向保持不变。
 
+现有设备手眼标定已完成，以当前参数为准。仅换电脑且相机、机械臂、安装和场景不变时，
+沿用当前内参与手眼文件，并在新机执行身份确认：
 
-
-视觉模块运行时出现ValueError: calibration identity mismatch (camera_serial, configuration_sha256); changed device/installation requires recalibration
-为没更新身份标定   现有设备手眼标定已完成，以当前参数为准。仅换电脑且相机、机械臂、安装和场景不变时，执行
-
-cd /home/zekeep/Desktop/Zekeeparm/src/rebot_grasp
-
-python scripts/confirm_calibration.py \
-  --config config/default.yaml \
-  --confirm-same-installation
+```bash
+python scripts/confirm_calibration.py --config config/default.yaml --confirm-same-installation
+```
 
 该命令只打开相机，不连接机械臂，生成被 Git 忽略的 `identity.local.json`。
 默认相机序列号以 YAML 为准，不能用于不同相机。身份记录缺失或不匹配时抓取会拒绝启动；

@@ -1,6 +1,8 @@
 """串口舵机通信层。
 
-使用 Zhongling 串口舵机文本协议。
+来源：/home/zekeep/rebot_lerobot/tools/zhonglin_servo/servo_zero.py
+搬运日期：2026-09-10
+若原文件中的对应实现发生变更，本文件必须同步更新。
 """
 
 import re

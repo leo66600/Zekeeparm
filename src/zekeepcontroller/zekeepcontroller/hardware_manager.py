@@ -83,10 +83,10 @@ class HardwareManager:
             channel,
         )
 
-        from reBotArm_control_py.actuator import RebotArm
-        from reBotArm_control_py.controllers import RebotArmEndPose
-        from reBotArm_control_py.dynamics import compute_generalized_gravity
-        from reBotArm_control_py.kinematics import (
+        from zekeeparm_SDK.actuator import RebotArm
+        from zekeeparm_SDK.controllers import RebotArmEndPose
+        from zekeeparm_SDK.dynamics import compute_generalized_gravity
+        from zekeeparm_SDK.kinematics import (
             compute_fk,
             load_robot_model,
             pad_q_for_model,

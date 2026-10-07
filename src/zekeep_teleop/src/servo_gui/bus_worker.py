@@ -20,7 +20,8 @@ DEFAULT_TOLERANCE = 10
 STABILITY_SAMPLES = 3
 STABILITY_SPAN = 5
 SAMPLE_INTERVAL_S = 0.03
-CALIBRATE_SAVE_WAIT_S = 0.3
+CALIBRATE_RELEASE_WINDOW_S = 0.35
+CALIBRATE_RELEASE_INTERVAL_S = 0.01
 PERSISTENT_WRITE_TIMEOUT_S = 1.0
 ID_SAVE_WAIT_S = 0.5
 ID_SCAN_START = 0
@@ -288,14 +289,26 @@ class BusWorker:
         with self._lock:
             self._readings.update(updates)
 
-    def _command_wait(self, message: str) -> str:
+    def _command_wait(self, message: str, followup: str = "") -> str:
         assert self._bus is not None
         if self._simulate:
-            return self._bus.command(message)
+            response = self._bus.command(message)
+            if followup:
+                self._bus.command(followup)
+            return response
         serial_port = self._bus.serial
         serial_port.reset_input_buffer()
         serial_port.write(f"{message}{self._bus.terminator}".encode("ascii"))
         serial_port.flush()
+        if followup:
+            # A single PULK can be ignored during PSCK's save. Repeat only release,
+            # never calibration; verified on unloaded 007 / V2.1.16STG.
+            deadline = time.monotonic() + CALIBRATE_RELEASE_WINDOW_S
+            while time.monotonic() < deadline:
+                serial_port.write(f"{followup}{self._bus.terminator}".encode("ascii"))
+                serial_port.flush()
+                time.sleep(CALIBRATE_RELEASE_INTERVAL_S)
+            return serial_port.read_all().decode("ascii", errors="ignore").strip()
         deadline, chunks = time.monotonic() + PERSISTENT_WRITE_TIMEOUT_S, []
         while time.monotonic() < deadline:
             waiting = serial_port.in_waiting
@@ -355,7 +368,8 @@ class BusWorker:
                           "message": f"ID 已成功改为 {target_id:03d}，但开机释力未确认；请勿重发改号命令"},
                 "id_write": id_result, "boot_release": boot_result}
 
-    def _do_calibrate_zero(self, servo_id: int, confirm_text: str) -> dict[str, Any]:
+    def _do_calibrate_zero(self, servo_id: int, confirm_text: str,
+                           manual_release_confirmed: bool = False) -> dict[str, Any]:
         if self._bus is None:
             return _error("not_connected", "尚未连接串口")
         if busy := self._reject_if_reading():
@@ -370,7 +384,13 @@ class BusWorker:
         before = self._bus.read_pwm(servo_id, retries=2)
         if before is None:
             return _error("no_response", f"舵机 ID {servo_id:03d} 没有有效回包，无法标定")
-        released = self._bus.release_torque(servo_id)
+        release_message = f"#{servo_id:03d}PULK!"
+        released = self._command_wait(release_message)
+        if "#OK!" not in released and not (manual_release_confirmed and not released):
+            return _error("torque_release_failed",
+                          f"标定前释力未收到确认，未发送 PSCK；{release_message} 回包：{released!r}"
+                          "（空字符串表示未收到回包）。无回包不能判定释力失败，也不能证明已释力",
+                          command=release_message, response=released)
         samples = []
         for index in range(STABILITY_SAMPLES):
             if index:
@@ -383,16 +403,25 @@ class BusWorker:
         if span > STABILITY_SPAN:
             return _error("joint_not_stable", f"关节没有保持稳定：3 次采样 {samples}，跨度 {span} 超过 5", samples=samples)
         message = f"#{servo_id:03d}{plan['command']}!"
-        response = self._command_wait(message)
-        re_release = self._bus.release_torque(servo_id)
-        time.sleep(CALIBRATE_SAVE_WAIT_S)
+        response = self._command_wait(message, followup=release_message)
+        # Firmware may ignore the queued PULK while saving; confirm a fresh release.
+        re_release = self._command_wait(release_message)
+        release_acknowledged = "#OK!" in re_release
+        if not release_acknowledged and not (manual_release_confirmed and not re_release):
+            return _error("torque_release_failed",
+                          f"PSCK 已发送，但保存后释力未确认；{release_message} 回包：{re_release!r}；"
+                          "请扶稳并检查舵机，勿直接重试标定",
+                          id=servo_id, command=message, response=response, re_released=re_release,
+                          torque_restored=None)
         after = self._bus.read_pwm(servo_id, retries=2)
         with self._lock:
             tolerance = self._tolerance
         verified = after is not None and abs(after - target) <= tolerance
         result = {"id": servo_id, "command": message, "response": response, "target": target,
                   "before": samples[-1], "samples": samples, "after": after, "tolerance": tolerance,
-                  "verified": verified, "torque_restored": False, "re_released": re_release}
+                  "verified": verified, "torque_restored": False if release_acknowledged else None,
+                  "re_released": re_release, "torque_release_acknowledged": release_acknowledged,
+                  "manual_release_confirmed": manual_release_confirmed}
         if verified:
             return {"ok": True, **result}
         return {"ok": False, "error": {"code": "pwm_out_of_tolerance",
@@ -488,12 +517,15 @@ class BusWorker:
                             auto_release_on_boot, timeout_s=timeout_s)
 
     def calibrate_zero(self, servo_id: Any, confirm_text: Any, *,
+                       manual_release_confirmed: Any = False,
                        timeout_s: float = DEFAULT_WRITE_TIMEOUT_S) -> dict[str, Any]:
         if not self._valid_id(servo_id, 1, 7):
             return _error("invalid_request", "舵机 ID 必须是 1 到 7 的整数")
         if not isinstance(confirm_text, str):
             return _error("invalid_request", "确认文本必须是字符串")
-        return self._submit("calibrate_zero", servo_id, confirm_text,
+        if not isinstance(manual_release_confirmed, bool):
+            return _error("invalid_request", "人工释力确认必须是布尔值")
+        return self._submit("calibrate_zero", servo_id, confirm_text, manual_release_confirmed,
                             timeout_s=timeout_s)
 
     def startup_torque(self, servo_id: Any, mode: Any, confirm_text: Any,

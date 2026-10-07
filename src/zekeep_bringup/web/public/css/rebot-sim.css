@@ -1023,6 +1023,7 @@ h1 {
 
 .ros-section,
 .log-section,
+.action-section,
 .joint-section,
 .teach-section,
 .metrics-section,
@@ -1039,12 +1040,11 @@ h1 {
 }
 
 .safety-section,
-.preset-section,
 .layer-section {
   grid-column: 1;
 }
 
-.action-section,
+.preset-section,
 .advanced-section {
   grid-column: 2;
 }

@@ -21,7 +21,7 @@ os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 os.environ.setdefault("QT_QPA_FONTDIR", "/usr/share/fonts/truetype")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SDK_ROOT = PROJECT_ROOT.parents[1] / "third_party" / "reBotArm_control_py"
+SDK_ROOT = PROJECT_ROOT.parents[1] / "zekeeparm_SDK"
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 if str(SDK_ROOT) not in sys.path:

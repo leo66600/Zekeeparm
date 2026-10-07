@@ -20,9 +20,9 @@ import coal
 ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = ROOT.parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(WORKSPACE / "third_party/reBotArm_control_py"))
-from reBotArm_control_py.controllers import RebotArmEndPose
-import reBotArm_control_py.kinematics.robot_model as sdk_model
+sys.path.insert(0, str(WORKSPACE / "zekeeparm_SDK"))
+from zekeeparm_SDK.controllers import RebotArmEndPose
+import zekeeparm_SDK.kinematics.robot_model as sdk_model
 from utils.transforms import mat4_to_pose6d
 
 
@@ -107,7 +107,7 @@ def generate(output):
         target = data.oMf[model.getFrameId("link6")].copy()
         pose = mat4_to_pose6d(data.oMf[model.getFrameId("gripper_base")].homogeneous)
         # No send thread or serial interface exists during generation.
-        with patch("reBotArm_control_py.controllers.rebotarm_endpose_controller.threading.Thread"):
+        with patch("zekeeparm_SDK.controllers.rebotarm_endpose_controller.threading.Thread"):
             if not controller.move_to_traj(*mat4_to_pose6d(target.homogeneous), duration=8.0):
                 raise ValueError(f"pose {index}: controller IK/path generation failed")
         points = np.asarray(controller._traj)
