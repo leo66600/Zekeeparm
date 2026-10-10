@@ -76,9 +76,9 @@ pick_and_place_node:
       joint_name: gripper_joint
       open_named_target: open
       close_named_target: closed
-      open_position: 0.035
+      open_position: 0.03258620689655173
       close_position: 0.0
-      hardware_open_position: 1.30
+      hardware_open_position: 1.35
       hardware_close_position: 0.0
       closing_torque: 1.0
       hold_torque: 0.30

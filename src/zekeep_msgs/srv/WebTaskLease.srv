@@ -1,0 +1,6 @@
+string owner
+bool acquire
+bool renew
+---
+bool success
+string message

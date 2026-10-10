@@ -3,7 +3,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
  const controlPolicy = window.ReBotControlPolicy;
  const DEG = Math.PI / 180;
   const NOMINAL_REACH = 0.65;
-  const GRIPPER_COMMAND_MAX = 0.07;
+  const GRIPPER_COMMAND_MAX = 0.07 * 1.35 / 1.45;
   const GRIPPER_ANIMATION_MS = 520;
   const FAKE_GRASP_LOCAL_OFFSET = new THREE.Vector3(-0.05, 0, -0.02);
   const TABLE_CENTER_X = 0.42;
@@ -24,7 +24,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
  const jointDefs = [
     { name: 'joint1', label: 'joint.j1', min: -2.58, max: 2.58, home: 0, maxVelocity: 1.5 },
     { name: 'joint2', label: 'joint.j2', min: 0, max: 3.7, home: 0, maxVelocity: 1.5 },
-    { name: 'joint3', label: 'joint.j3', min: 0, max: 3.7, home: 0, maxVelocity: 1.5 },
+    { name: 'joint3', label: 'joint.j3', min: -0.01, max: 3.7, home: 0, maxVelocity: 1.5 },
     { name: 'joint4', label: 'joint.j4', min: -1.57, max: 1.57, home: 0, maxVelocity: 1.5 },
     { name: 'joint5', label: 'joint.j5', min: -1.57, max: 1.57, home: 0, maxVelocity: 1.5 },
     { name: 'joint6', label: 'joint.j6', min: -1.57, max: 1.57, home: 0, maxVelocity: 1.5 },
@@ -47,6 +47,8 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   let workspacePlanarReach = NOMINAL_REACH;
   let workspaceVerticalReach = NOMINAL_REACH;
   let targetGhost;
+  let posePreview = null;
+  let posePreviewLine;
   let tcpMarker;
   let dragErrorLine;
   let animation = null;
@@ -305,6 +307,11 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     targetGhost.visible = false;
     targetGhost.userData.active = false;
     scene.add(targetGhost);
+
+    posePreviewLine = new THREE.Line(new THREE.BufferGeometry(),
+      new THREE.LineDashedMaterial({color: 0xf2a541, dashSize: 0.012, gapSize: 0.008}));
+    posePreviewLine.visible = false;
+    scene.add(posePreviewLine);
 
     dragErrorLine = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
@@ -697,12 +704,15 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
 
   function updateReadyState() {
     els.status.classList.add('ready');
-    els.status.lastChild.textContent = ' Ready';
+    els.status.lastElementChild.setAttribute('data-i18n', 'app.ready');
+    els.status.lastElementChild.textContent = t('app.ready');
     els.loading.classList.add('hidden');
+    window.dispatchEvent(new CustomEvent('rebot-model-ready'));
   }
 
   function failLoad(message) {
-    els.status.lastChild.textContent = ' Load failed';
+    els.status.lastElementChild.setAttribute('data-i18n', 'app.loadFailed');
+    els.status.lastElementChild.textContent = t('app.loadFailed');
     els.loadingText.textContent = message;
   }
 
@@ -726,6 +736,16 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     if (els.teachReplay) els.teachReplay.addEventListener('click', replayTeaching);
     if (els.teachExport) els.teachExport.addEventListener('click', exportTeachingWaypoints);
     if (els.teachClear) els.teachClear.addEventListener('click', clearTeaching);
+    document.getElementById('teach-import')?.addEventListener('click', () => importTeachingJson(els.teachExportText.value));
+    document.getElementById('teach-import-file')?.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        if (file.size > controlPolicy.MAX_WAYPOINT_BYTES) throw new Error('Waypoint JSON exceeds 4 MiB');
+        importTeachingJson(await file.text());
+      } catch (error) { updateTeachingStatus(t('p01.importFailed', {error: error.message})); }
+      event.target.value = '';
+    });
     if (els.dragMarker) {
       els.dragMarker.addEventListener('pointerdown', startTcpDrag);
     }
@@ -747,6 +767,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   function applyPreset(key, immediate) {
     const preset = presets[key];
     if (!preset) return;
+    if (posePreview) window.reBotPosePreview?.clear();
     const next = presetAngles(preset);
     if (hardwareControlActive()) {
       jointDefs.forEach((joint) => pendingTargetJoints.add(joint.name));
@@ -821,6 +842,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     const value = clamp(rad, def.min, def.max);
     currentAngles[name] = value;
     const source = options && options.source ? options.source : (fromUser ? 'user' : 'sim');
+    if (source !== 'ros' && posePreview) window.reBotPosePreview?.clear();
     if (source === 'ros') {
       if (pendingTargetJoints.has(name) && Math.abs((targetAngles[name] ?? value) - value) < 0.02) {
         pendingTargetJoints.delete(name);
@@ -829,7 +851,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     }
 
     if (name === 'gripper') {
-      const fingerTravel = (value / GRIPPER_COMMAND_MAX) * 0.035;
+      const fingerTravel = value / 2;
       setUrdfJointValue(robot, 'gripper_joint', fingerTravel);
       setUrdfJointValue(robot, 'right_joint', fingerTravel);
       setUrdfJointValue(ghostRobot, 'gripper_joint', fingerTravel);
@@ -859,7 +881,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     }
     updateJointLabel(name);
 
-    if (source !== 'ros' && !(options && options.emit === false)) {
+    if (!teachingRecording && source !== 'ros' && !(options && options.emit === false)) {
       emitCommand({ type: 'joint', name, value, source, stamp: performance.now() });
     }
     if (source === 'ros') updateGhostTarget(targetAngles);
@@ -877,7 +899,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
 
   function setGhostJoint(name, rad) {
     if (name === 'gripper') {
-      const fingerTravel = (clamp(rad, 0, GRIPPER_COMMAND_MAX) / GRIPPER_COMMAND_MAX) * 0.035;
+      const fingerTravel = clamp(rad, 0, GRIPPER_COMMAND_MAX) / 2;
       setUrdfJointValue(ghostRobot, 'gripper_joint', fingerTravel);
       setUrdfJointValue(ghostRobot, 'right_joint', fingerTravel);
       return;
@@ -898,6 +920,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   }
 
   function moveToAngles(nextAngles, duration, options) {
+    if (posePreview) window.reBotPosePreview?.clear();
     teachingPlayback = null;
     if (hardwareControlActive() && !(options && options.localOnly)) {
       targetAngles = { ...targetAngles, ...nextAngles };
@@ -931,7 +954,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   }
 
   function updateGhostTarget(angles) {
-    if (!ghostRobot) return;
+    if (!ghostRobot || posePreview) return;
     jointDefs.forEach((joint) => setGhostJoint(joint.name, angles[joint.name] ?? 0));
     ghostRobot.updateMatrixWorld(true);
 
@@ -944,9 +967,64 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   }
 
   function syncGhostToRobot() {
-    if (!ghostRobot) return;
+    if (!ghostRobot || posePreview) return;
     jointDefs.forEach((joint) => setGhostJoint(joint.name, currentAngles[joint.name] ?? 0));
     ghostRobot.updateMatrixWorld(true);
+  }
+
+  function previewPose(position, seconds, angles) {
+    if (!robot || !ghostRobot || ![position.x, position.y, position.z, seconds].every(Number.isFinite)) return false;
+    posePreview = {target: new THREE.Vector3(position.x, position.z, -position.y),
+      start: {...currentAngles}, end: angles ? {...currentAngles, ...angles} : null,
+      startedAt: performance.now(), duration: Math.max(1, seconds * 1000)};
+    const points = [];
+    if (posePreview.end) {
+      for (let step = 0; step <= 24; step += 1) {
+        const u = step / 24;
+        const blend = u * u * (3 - 2 * u);
+        jointDefs.forEach(joint => setGhostJoint(joint.name,
+          posePreview.start[joint.name] + (posePreview.end[joint.name] - posePreview.start[joint.name]) * blend));
+        ghostRobot.updateMatrixWorld(true);
+        const point = getTcpPosition(ghostRobot);
+        if (point) points.push(point);
+      }
+    } else {
+      const current = getTcpPosition(robot);
+      if (current) points.push(current, posePreview.target.clone());
+    }
+    posePreviewLine.geometry.dispose();
+    posePreviewLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
+    posePreviewLine.computeLineDistances();
+    posePreviewLine.visible = true;
+    updatePosePreview(performance.now());
+    return true;
+  }
+
+  function updatePosePreview(now) {
+    if (!posePreview) return;
+    targetGhost.position.copy(posePreview.target);
+    targetGhost.material.color.set(0xf2a541);
+    targetGhost.visible = true;
+    if (!posePreview.end) {
+      ghostRobot.visible = false;
+      return;
+    }
+    const u = clamp((now - posePreview.startedAt) / posePreview.duration, 0, 1);
+    const blend = u * u * (3 - 2 * u);
+    jointDefs.forEach(joint => setGhostJoint(joint.name,
+      posePreview.start[joint.name] + (posePreview.end[joint.name] - posePreview.start[joint.name]) * blend));
+    ghostRobot.updateMatrixWorld(true);
+    ghostRobot.visible = document.getElementById('toggle-ghost').checked;
+  }
+
+  function clearPosePreview() {
+    posePreview = null;
+    if (targetGhost) targetGhost.visible = false;
+    if (posePreviewLine) posePreviewLine.visible = false;
+    if (ghostRobot) {
+      ghostRobot.visible = document.getElementById('toggle-ghost').checked;
+      syncGhostToRobot();
+    }
   }
 
   function generateTrajectory() {
@@ -1041,6 +1119,11 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     showTargetGhost(dragTarget, dragTargetClamped);
     emitTcpTarget(dragTarget, 'drag', t('sim.tcpDrag'), dragTargetClamped);
 
+    const feedbackAngles = hardwareControlActive() ? { ...currentAngles } : null;
+    if (feedbackAngles) {
+      applyRobotAngles(robot, targetAngles);
+      currentAngles = { ...targetAngles };
+    }
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0.012, (now - dragLastTime) / 1000 || 0.016));
     dragLastTime = now;
@@ -1051,7 +1134,12 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
       result = IKSolver.servoStep(dragTarget, dt / substeps);
     }
 
-    syncGhostToRobot();
+    if (feedbackAngles) {
+      targetAngles = { ...currentAngles };
+      currentAngles = feedbackAngles;
+      applyRobotAngles(robot, feedbackAngles);
+      updateGhostTarget(targetAngles);
+    } else syncGhostToRobot();
     recordTeachingWaypoint(false);
     updateDragMarker();
     updateDragErrorLine();
@@ -1065,6 +1153,12 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     draggingTcp = false;
     dragPlane = null;
     dragPointerId = null;
+    if (hardwareControlActive()) {
+      if (els.dragMarker && event && els.dragMarker.hasPointerCapture(event.pointerId)) els.dragMarker.releasePointerCapture(event.pointerId);
+      els.dragMarker?.classList.remove('dragging');
+      setDragStatus(t('p01.dragPreview'));
+      return;
+    }
     const releasedTcp = getTcpPosition(robot);
     if (releasedTcp && releasedTcp.distanceTo(dragTarget) > DRAG_SETTLE_TARGET_ERROR) {
       dragSettling = true;
@@ -1089,7 +1183,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
 
   function updateDragMarker() {
     if (!dragMode || !els.dragMarker || !camera || !robot) return;
-    const pos = (draggingTcp || dragSettling) ? dragTarget : getTcpPosition(robot);
+    const pos = (draggingTcp || dragSettling) ? dragTarget : getTcpPosition(hardwareControlActive() ? ghostRobot : robot);
     if (!pos) return;
 
     const hostRect = els.host.getBoundingClientRect();
@@ -1235,8 +1329,8 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
 
   function toggleTeachingRecord() {
     if (teachingRecording) {
-      teachingRecording = false;
       recordTeachingWaypoint(true);
+      teachingRecording = false;
     } else {
       const hasExistingPath = teachingWaypoints.length > 0;
       const overwriteConfirmed = !hasExistingPath || window.confirm(
@@ -1246,7 +1340,11 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
         updateTeachingStatus('已取消新录制，旧路径保持不变');
         return;
       }
+      // Recording edits is always local, even if the hardware control lock was open.
+      document.getElementById('ros-control-enable').checked = false;
+      document.getElementById('ros-control-enable').dispatchEvent(new Event('change'));
       teachingWaypoints = [];
+      stopPath();
       teachingStart = performance.now();
       teachingLastSample = 0;
       teachingPlayback = null;
@@ -1266,14 +1364,19 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     const tcp = getTcpPosition(robot);
     if (!tcp) return;
     const last = teachingWaypoints[teachingWaypoints.length - 1];
-    if (!force && last && last.tcp && new THREE.Vector3(last.tcp.x, last.tcp.y, last.tcp.z).distanceTo(tcp) < TEACH_MIN_TCP_STEP) {
+    if (!force && last && jointDefs.every((joint) => Math.abs(last.joints[joint.name] - currentAngles[joint.name]) < (joint.unit === 'm' ? 0.0005 : 0.003))) {
       return;
     }
 
+    if (teachingWaypoints.length >= controlPolicy.MAX_WAYPOINTS || now - teachingStart > 1800000) {
+      teachingRecording = false;
+      updateTeachingStatus(t('p01.recordLimit'));
+      return;
+    }
     teachingLastSample = now;
     const ros = threeToRos(tcp);
     teachingWaypoints.push({
-      t: Math.max(0, now - teachingStart),
+      t: Math.max(0, now - teachingStart, last ? last.t + 0.001 : 0),
       joints: { ...currentAngles },
       tcp: { x: tcp.x, y: tcp.y, z: tcp.z },
       tcp_ros: { x: ros.x, y: ros.y, z: ros.z }
@@ -1288,6 +1391,10 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     }
     teachingRecording = false;
     stopPath();
+    if (hardwareControlActive()) {
+      stageTeachingReplayForHardware();
+      return;
+    }
     moveStart = 0;
     teachingPlayback = {
       points: teachingWaypoints.map((point) => ({ ...point, joints: { ...point.joints } })),
@@ -1304,7 +1411,6 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     const point = teachingPlayback.points[teachingPlayback.index];
     if (!point) {
       teachingPlayback = null;
-      stageTeachingReplayForHardware();
       updateTeachingStatus(t('sim.replayDone'));
       return;
     }
@@ -1326,7 +1432,6 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     if (teachingPlayback.index >= teachingPlayback.points.length) {
       teachingPlayback = null;
       syncGhostToRobot();
-      stageTeachingReplayForHardware();
       updateTeachingStatus(t('sim.replayDone'));
       return;
     }
@@ -1335,13 +1440,13 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     const next = teachingPlayback.points[teachingPlayback.index];
     teachingPlayback.startAngles = { ...currentAngles };
     teachingPlayback.segmentStart = now;
-    teachingPlayback.segmentDuration = clamp(next.t - prev.t, 80, 900);
+    teachingPlayback.segmentDuration = Math.max(1, next.t - prev.t);
   }
 
   function stageTeachingReplayForHardware() {
     if (!teachingWaypoints.length) return;
     emitCommand({
-      type: 'teaching-replay-complete',
+      type: 'teaching-replay',
       label: '示教轨迹',
       waypoints: teachingWaypoints.map((point) => ({
         ...point,
@@ -1352,36 +1457,54 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     });
   }
 
+  function getTeachingPayload() {
+    const jointNames = jointDefs.map((joint) => joint.name);
+    return {
+      format: 'zekeep_ros_waypoints_v1',
+      frame_id: 'base_link',
+      source: 'web-preview',
+      gripper_unit: 'm',
+      joint_names: jointNames,
+      count: teachingWaypoints.length,
+      waypoints: teachingWaypoints.map((point) => {
+        const nanoseconds = Math.round(point.t * 1e6);
+        return {
+          time_from_start: { sec: Math.floor(nanoseconds / 1e9), nanosec: nanoseconds % 1e9 },
+          positions: jointNames.map((name) => point.joints[name]),
+          ...(point.tcp_ros ? { tcp_ros: point.tcp_ros } : {})
+        };
+      })
+    };
+  }
+
   function exportTeachingWaypoints() {
     if (!teachingWaypoints.length) {
       updateTeachingStatus(t('sim.noExport'));
       return;
     }
-    const jointNames = jointDefs.map((joint) => joint.name);
-    const payload = {
-      format: 'zekeep_ros_waypoints_v1',
-      frame_id: 'base_link',
-      joint_names: jointNames,
-      count: teachingWaypoints.length,
-      waypoints: teachingWaypoints.map((point) => ({
-        time_from_start: {
-          sec: Math.floor(point.t / 1000),
-          nanosec: Math.round((point.t % 1000) * 1e6)
-        },
-        positions: jointNames.map((name) => point.joints[name] ?? 0),
-        tcp_ros: point.tcp_ros
-      }))
-    };
-    const text = JSON.stringify(payload, null, 2);
-    if (els.teachExportText) {
-      els.teachExportText.value = text;
-      els.teachExportText.focus();
-      els.teachExportText.select();
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).catch(() => {});
-    }
+    const text = JSON.stringify(getTeachingPayload(), null, 2);
+    if (els.teachExportText) els.teachExportText.value = text;
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'zekeep-web-waypoints.json';
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     updateTeachingStatus(t('sim.exported', { n: teachingWaypoints.length }));
+  }
+
+  function importTeachingJson(text) {
+    try {
+      const points = controlPolicy.parseTeachingJson(text, jointDefs);
+      if (teachingWaypoints.length && !window.confirm(t('p01.overwrite'))) return false;
+      stopLocalMotion();
+      teachingWaypoints = points;
+      updateTeachingStatus(t('p01.imported', {n: points.length}));
+      return true;
+    } catch (error) {
+      updateTeachingStatus(t('p01.importFailed', {error: error.message}));
+      return false;
+    }
   }
 
   function clearTeaching() {
@@ -1488,7 +1611,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
       this.jointNames.forEach((name, index) => {
         const def = jointDefs.find((joint) => joint.name === name);
         const limitedDelta = clamp(delta[index] || 0, -this.maxJointSpeed * dt, this.maxJointSpeed * dt);
-        setJoint(name, clamp((currentAngles[name] || 0) + limitedDelta, def.min, def.max), false, { source: options && options.source ? options.source : 'drag' });
+        setJoint(name, clamp((currentAngles[name] || 0) + limitedDelta, def.min, def.max), false, { source: options && options.source ? options.source : 'drag', emit: false });
       });
 
       robot.updateMatrixWorld(true);
@@ -1613,6 +1736,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   }
 
   function hardwareControlActive() {
+    if (teachingRecording) return false;
     const control = document.getElementById('ros-control-enable');
     return controlPolicy.shouldUseHardwareTargets({
       connected: Boolean(window.reBotRos && window.reBotRos.connected),
@@ -1621,6 +1745,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   }
 
   function updateTargetJoint(name, value) {
+    if (posePreview) window.reBotPosePreview?.clear();
     const def = jointDefs.find((joint) => joint.name === name);
     if (!def) return;
     const target = clamp(value, def.min, def.max);
@@ -1673,6 +1798,22 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     animation = null;
   }
 
+  function stopLocalMotion() {
+    stopPath();
+    teachingRecording = false;
+    teachingPlayback = null;
+    moveStart = 0;
+    gripperMotion = null;
+    draggingTcp = false;
+    dragSettling = false;
+    if (els.dragMarker && dragPointerId !== null && els.dragMarker.hasPointerCapture(dragPointerId)) {
+      els.dragMarker.releasePointerCapture(dragPointerId);
+    }
+    dragPointerId = null;
+    els.dragMarker?.classList.remove('dragging');
+    updateTeachingStatus();
+  }
+
   function updatePath(now) {
     if (!animation || moveStart) return;
     if (now < animation.nextAt) return;
@@ -1692,7 +1833,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     const spatial = Math.sqrt(ros.x * ros.x + ros.y * ros.y + ros.z * ros.z);
     els.tcp.textContent = `X ${mm(ros.x)} / Y ${mm(ros.y)} / Z ${mm(ros.z)}`;
     els.reach.textContent = t('sim.reachText', { planar: Math.round(planar * 1000), workspace: Math.round(workspacePlanarReach * 1000), spatial: Math.round(spatial * 1000) });
-    els.reach.style.color = planar <= workspacePlanarReach ? '#d7fff4' : '#ffd1c9';
+    els.reach.style.color = planar <= workspacePlanarReach ? 'var(--green)' : 'var(--red)';
   }
 
   function getTcpPosition(root) {
@@ -1955,8 +2096,10 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     updateGripperMotion(frameNow);
     updatePath(frameNow);
     updateTeachingPlayback(frameNow);
+    recordTeachingWaypoint(false);
     updateDragSettling(frameNow);
     updateAxisLabelVisibility(frameNow);
+    updatePosePreview(frameNow);
     if (robot) {
       robot.updateMatrixWorld(true);
       updateTcpHud();
@@ -2089,6 +2232,13 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
   }
 
   window.reBotSim = {
+    previewPose,
+    clearPosePreview,
+    stopLocalMotion,
+    importTeachingJson,
+    getTeachingPayload,
+    setTeachingStatus: updateTeachingStatus,
+    isRecording() { return teachingRecording; },
     getAngles() {
       return { ...currentAngles };
     },
@@ -2108,7 +2258,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     setAngles(angles, options) {
       if (!angles || typeof angles !== 'object') return;
       const source = options && options.source ? options.source : 'api';
-      if (source === 'ros' && (teachingPlayback || moveStart || animation || draggingTcp || dragSettling || gripperMotion)) return;
+      if (source === 'ros' && (teachingRecording || teachingPlayback || moveStart || animation || draggingTcp || dragSettling || gripperMotion)) return;
       if (source !== 'ros') {
         stopPath();
         teachingPlayback = null;
@@ -2122,7 +2272,7 @@ const t = window.rebotI18n ? window.rebotI18n.t : (k) => k;
     },
     setGripperWidth(widthM, options) {
       const source = options && options.source ? options.source : 'api';
-      if (source === 'ros' && (teachingPlayback || moveStart || animation || draggingTcp || dragSettling || gripperMotion)) return;
+      if (source === 'ros' && (teachingRecording || teachingPlayback || moveStart || animation || draggingTcp || dragSettling || gripperMotion)) return;
       if (source !== 'ros') {
         stopPath();
         teachingPlayback = null;

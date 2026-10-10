@@ -41,8 +41,8 @@ carry_node:
 
     # 仿真夹爪位置、真机张开位置和接触检测抓取力矩。
     gripper:
-      open_position: 0.035  # 单侧夹指张开位移，单位 m
+      open_position: 0.03258620689655173  # 单侧夹指张开位移，单位 m
       close_position: 0.0   # 夹指闭合位置，单位 m
-      hardware_open_position: 1.15   #当前真机电机张开目标，单位 rad
+      hardware_open_position: 1.35   #当前真机电机张开目标，单位 rad
       closing_torque: 1.0
       hold_torque: 0.30

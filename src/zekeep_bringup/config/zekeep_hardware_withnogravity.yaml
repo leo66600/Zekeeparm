@@ -61,7 +61,7 @@ models:
           gear_ratio: 1.0
           encoder_zero: 0.0
           ros_zero: 0.0
-          hard_lower: 0.0
+          hard_lower: -0.01
           hard_upper: 3.7
           max_velocity: 1.5
         joint4:
@@ -94,16 +94,15 @@ models:
           encoder_zero: 0.0
           ros_zero: 0.0
           hard_lower: 0.0
-          hard_upper: 1.57
+          hard_upper: 1.35
           max_velocity: 0.5
 
       gripper:
         position_limits:
-          # The current hardware reaches its physical open stop near 1.158 rad.
-          # Keep a small margin so normal opening is not held against the stop.
-          open: 1.15
+          # Linear calibration: 1.45 rad = 70 mm; authorized motor range 0..1.35 rad.
+          open: 1.35
           close: 0.0
-        max_width_m: 0.070
+        max_width_m: 0.06517241379310346
         grasp:
           closing_torque: 1.0
           hold_torque: 0.30

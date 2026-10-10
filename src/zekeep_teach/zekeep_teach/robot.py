@@ -121,6 +121,17 @@ class RosTeachRobot:
             self.session.points.pop()
             return True
 
+    def clear_recording(self) -> None:
+        """Clear in-memory points and path while idle, preserving motor state."""
+        with self._lock:
+            if self.state not in (TeachState.HOLD, TeachState.GUIDING):
+                raise RuntimeError('wait for teaching/replay to finish before clearing')
+            if self._continuous_recording:
+                raise RuntimeError('stop continuous recording before clearing')
+            self.session = TeachingSession()
+            self._last_path_sequence = None
+            self._session_started_monotonic = float(self._clock())
+
     def toggle_continuous_recording(self, *, overwrite: bool = False) -> bool:
         """Toggle continuous capture, requiring confirmation before replacement."""
         with self._lock:
@@ -244,11 +255,12 @@ class RosTeachRobot:
     def cancel_replay(self) -> None:
         """Request cancellation of the active replay action."""
         with self._lock:
-            self._cancel_replay.set()
             action_active = self.state in (
                 TeachState.POINT_REPLAY,
                 TeachState.PATH_REPLAY,
             )
+            if action_active:
+                self._cancel_replay.set()
         if action_active:
             self._client.cancel_active()
 
@@ -282,6 +294,18 @@ class RosTeachRobot:
         with self._lock:
             self.state = TeachState.DISABLED
         self._client.close()
+
+    def hold(self) -> None:
+        """End hand guiding and recording without homing or disabling motors."""
+        with self._lock:
+            self._require_state(TeachState.GUIDING)
+            self._continuous_recording = False
+        self._client.stop_gravity_compensation()
+        self._client.stop_and_hold()
+        self._settle_at_current(cancelable=False)
+        with self._lock:
+            self._gravity_compensation_active = False
+            self.state = TeachState.HOLD
 
     def _prepare_replay(self, replay_state: TeachState) -> None:
         with self._lock:

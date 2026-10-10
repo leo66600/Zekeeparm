@@ -1,4 +1,6 @@
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 
 from zekeep_bringup.launch_config import (
@@ -16,6 +18,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             *create_common_arguments(bringup_share),
-            create_controller_node(configurations),
+            DeclareLaunchArgument("python_executable", default_value="",
+                                  description="Optional SDK Python interpreter"),
+            create_controller_node(configurations,
+                                   python_executable=LaunchConfiguration("python_executable")),
         ]
     )

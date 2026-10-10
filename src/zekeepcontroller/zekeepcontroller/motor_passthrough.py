@@ -147,6 +147,8 @@ class MotorPassthrough:
         return _callback
 
     def _can_send_lowlevel(self, label: str, *, allow_preempt: bool) -> bool:
+        if not self._node.web_task_gate.allowed():
+            return False
         state = self._hardware.state_machine
         if state in ("SERVO_RUNNING", "GRAVITY_COMP", "SAFE_HOMING"):
             self._node.get_logger().warn(f"rejecting {label} in state {state}")

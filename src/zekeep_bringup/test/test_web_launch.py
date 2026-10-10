@@ -8,7 +8,9 @@ import yaml
 
 launch_file = Path(__file__).resolve().parents[1] / 'launch' / 'web.launch.py'
 description = runpy.run_path(str(launch_file))['generate_launch_description']()
-arguments = dict(description.entities[0].launch_arguments)
+from launch.actions import IncludeLaunchDescription
+bridge = next(action for action in description.entities if isinstance(action, IncludeLaunchDescription))
+arguments = dict(bridge.launch_arguments)
 
 # Match the XML launch frontend's YAML conversion, before rclpy type checking.
 for name in ('topics_glob', 'services_glob', 'params_glob'):

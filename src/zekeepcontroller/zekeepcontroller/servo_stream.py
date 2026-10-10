@@ -22,13 +22,13 @@ class ServoStream:
         self.last_command = None
         self._lock = threading.Lock()
         root = f"/{namespace}/servo"
-        self.start_service = node.create_service(Trigger, root + "/start", self.start)
+        self.start_service = node.create_service(Trigger, root + "/start", node.web_task_gate.service(self.start))
         self.stop_service = node.create_service(Trigger, root + "/stop", self.stop)
         self.require_mit_service = node.create_service(
-            Trigger, root + "/require_mit", self.require_mit
+            Trigger, root + "/require_mit", node.web_task_gate.service(self.require_mit)
         )
         self.require_posvel_service = node.create_service(
-            Trigger, root + "/require_posvel", self.require_posvel
+            Trigger, root + "/require_posvel", node.web_task_gate.service(self.require_posvel)
         )
         self.subscription = node.create_subscription(
             JointTrajectory,

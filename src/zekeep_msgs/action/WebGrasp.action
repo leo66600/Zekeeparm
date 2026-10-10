@@ -1,0 +1,6 @@
+string detection_id
+---
+bool success
+string message
+---
+string phase

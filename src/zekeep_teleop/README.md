@@ -2,7 +2,7 @@
 
 本项目通过 LeRobot 将七轴舵机主臂的动作实时映射到 `zk_xm115` 七轴从臂。
 
-本目录随 `Zekeeparm_ws` 统一维护，保留独立的 Python/LeRobot 环境。
+本目录随 `Zekeeparm` 统一维护，保留独立的 Python/LeRobot 环境。
 `COLCON_IGNORE` 将其排除在 ROS 构建之外；无需启动 ROS 或 MoveIt。
 不要将本项目依赖安装进 `.venv-ros`，两者使用不同版本的 `motorbridge`。
 
@@ -19,10 +19,12 @@
 - 设备端口：以目标计算机实际识别结果为准
 - 已验证主臂方向：`[1, 1, 1, -1, -1, 1, 1]`
 
-本包及采集器保持原有角度制、主从映射和启动零位标定。ROS/视觉/网页的
-J1 ±2.58 rad、J2/J3 0–3.7 rad 及六轴 `-1` 方向不覆盖本包配置。
+本包保持原有角度制、主从方向和启动零位标定；夹爪最大目标同步为
+`1.35 rad ≈ 77.3493°`，对应约 `65.17 mm` 开口。ROS/视觉/网页的
+J1 ±2.58 rad、J2 0–3.7 rad、J3 -0.01–3.7 rad 及六轴 `-1` 方向不覆盖本包配置。
 
-当前关节映射如下。角度为已经完成实机验证的程序动作范围，不要用未经上机验证的标称角度覆盖。
+当前关节映射如下。手臂范围沿用已有实机标定；夹爪上限按本次授权更新为
+1.35 rad，尚未重新进行实机验证。不要改动其他关节的既有标定。
 
 | 主臂舵机 ID | zk_xm115 关节 | 从臂 CAN ID | 程序动作范围 |
 |---:|---|---:|---:|
@@ -32,7 +34,7 @@ J1 ±2.58 rad、J2/J3 0–3.7 rad 及六轴 `-1` 方向不覆盖本包配置。
 | 004 | wrist_flex | 004 | -89.95°～89.95° |
 | 005 | wrist_yaw | 005 | -89.95°～89.95° |
 | 006 | wrist_roll | 006 | -89.95°～89.95° |
-| 007 | gripper | 007 | 0°～85.94°（从臂侧反向） |
+| 007 | gripper | 007 | 0°～77.3493°（从臂侧反向） |
 
 主臂舵机 002/003 对应从臂 CAN 002/003。沿用这两个物理关节已验证的 `+1` 方向；原主臂 ID 002 的肘关节比例系数现在属于 ID 003。
 
@@ -47,13 +49,14 @@ sudo apt install -y git curl ffmpeg build-essential
 
 ## 2. 安装 Miniforge
 
-如果计算机已经可以使用 Conda，可以跳过本节。x86_64 计算机执行：
+本包统一使用 Miniforge；如果目标目录已有 Miniforge，可以跳过安装。
+默认目录为 `~/miniforge3`，自定义位置使用 `ZKEEP_MINIFORGE_DIR`。x86_64 计算机执行：
 
 ```bash
 curl -L -o /tmp/Miniforge3-Linux-x86_64.sh \
   https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
-bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "$HOME/miniforge3"
-source "$HOME/miniforge3/etc/profile.d/conda.sh"
+bash /tmp/Miniforge3-Linux-x86_64.sh -b -p "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}"
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
 conda init bash
 ```
 
@@ -66,8 +69,9 @@ conda init bash
 export ZKEEP_WS="/你的实际工作区路径"
 cd "$ZKEEP_WS/src/zekeep_teleop"
 
-conda create -n lerobot python=3.12 -y
-conda activate lerobot
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda create -p "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/lerobot" python=3.12 -y
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/lerobot"
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
@@ -110,7 +114,7 @@ ls -l /dev/serial/by-id/ 2>/dev/null
 
 ```yaml
 robot:
-  port: /dev/ttyACM1
+  port: /dev/ttyACM0
   id: zk_xm115
 teleop:
   port: /dev/ttyUSB0
@@ -121,7 +125,7 @@ teleop:
 检查串口是否被其他程序占用：
 
 ```bash
-fuser -v /dev/ttyUSB0 /dev/ttyACM1
+fuser -v /dev/ttyUSB0 /dev/ttyACM0
 ```
 
 遥操作运行期间不要同时启动串口监视器、旧遥操作程序或其他访问同一设备的进程。
@@ -145,7 +149,7 @@ zhongling-tune \
   --monitor
 ```
 
-启动时，主臂舵机 002/003 必须接近 PWM 2400，容差为 ±60。程序会把完整启动姿态作为本次会话零位。如果出现 `is not at startup zero`，应停止并重新检查主臂机械零位。
+启动时，主臂舵机 002/003 必须接近 PWM 2400，容差为 ±60。程序会把启动姿态作为本次会话零位，但夹爪 007 固定使用标定中心 PWM 1500。如果出现 `is not at startup zero`，应停止并重新检查主臂机械零位。
 
 舵机中点和上电位置保存在舵机内部，换计算机不需要重新写入 PSCK 或 PCSD。
 
@@ -154,7 +158,8 @@ zhongling-tune \
 首次在新计算机运行时，应支撑 zk_xm115，从小幅单关节动作开始检查方向和限位，再逐步扩大动作范围。
 
 ```bash
-conda activate lerobot
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/lerobot"
 cd "$ZKEEP_WS/src/zekeep_teleop"
 zhongling-teleoperate --config_path=configs/zhongling_b601_teleop.yaml
 ```
@@ -186,7 +191,7 @@ groups
 
 ### 找不到默认端口
 
-重新运行 `python -m serial.tools.list_ports -v`，然后按实际设备路径修改 YAML。不要假设另一台计算机仍然使用 `/dev/ttyUSB0` 和 `/dev/ttyACM1`。
+重新运行 `python -m serial.tools.list_ports -v`，然后按实际设备路径修改 YAML。不要假设另一台计算机仍然使用 `/dev/ttyUSB0` 和 `/dev/ttyACM0`。
 
 ### 主臂舵机没有完整响应
 

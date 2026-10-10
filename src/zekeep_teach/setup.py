@@ -21,6 +21,7 @@ setup(
     entry_points={
         "console_scripts": [
             "teach_replay = zekeep_teach.cli:main",
+            "web_tasks = zekeep_teach.web_tasks:main",
         ],
     },
 )

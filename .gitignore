@@ -12,8 +12,8 @@ __pycache__/
 *.a
 *.local.yaml
 node_modules/
-src/rebot_grasp/logs/
-src/rebot_grasp/data/
+src/zekeep_grasp/logs/
+src/zekeep_grasp/data/
 src/zekeep_teach/logs/
 
 
@@ -23,8 +23,15 @@ src/zekeep_teach/logs/
 .env.*
 *.pem
 *.key
-src/rebot_grasp/models/*.pt
-src/rebot_grasp/mobileclip*.ts
-src/rebot_grasp/config/calibration/backups/
-third_party/graspnet-baseline/
+src/zekeep_grasp/models/*.pt
+src/zekeep_grasp/mobileclip*.ts
+src/zekeep_grasp/config/calibration/backups/
+third_party/graspnet-baseline
 MANIFEST.sha256
+
+# Weights and raw local teaching captures.
+/mobileclip*.ts
+/ready_3poses_*.json
+*.pt
+*.pth
+*.onnx

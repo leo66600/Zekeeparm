@@ -3,6 +3,8 @@
 工作区随附 SDK 源码：`zekeeparm_SDK`。控制接口由 Python 提供；Pinocchio 等依赖包含 C++ 原生库。
 
 SDK 仅保留 `config/rebotarm_dm.yaml`，默认直接读取 DM 配置。
+模型与 ROS 主 URDF 内容一致，保留 `official_tcp`；直接 SDK 六轴 IK 固定夹指关节。
+夹爪映射基准 `1.45 rad = 70 mm`，允许目标 `0–1.35 rad`，最大开口约 `65.17 mm`。
 Python 导入统一为 `zekeeparm_SDK`；`RebotArm`、`RebotArmEndPose` 等类名保持不变。
 旧环境迁移时，先执行 `python -m pip uninstall rebotarm-control-py`，再按下方步骤安装新包。
 
@@ -47,7 +49,8 @@ source tools/activate_ros.sh
 
 ```bash
 cd "$ZKEEP_WS"
-conda activate rebotarm
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/rebotarm"
 python -m pip install --no-deps -e zekeeparm_SDK
 ```
 
@@ -77,7 +80,8 @@ from zekeeparm_SDK.kinematics import compute_fk
 视觉环境：
 
 ```bash
-conda activate rebotarm
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/rebotarm"
 python -c '
 import pinocchio, motorbridge, numpy
 from zekeeparm_SDK.actuator import RebotArm
@@ -100,10 +104,18 @@ python -m pip show zekeeparm-sdk motorbridge pin
 python -B tools/check_sdk.py
 ```
 
+ROS/SDK 模型替换后的 FK 与六轴 IK 检查需在视觉环境执行（不连接硬件）：
+
+```bash
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/rebotarm"
+python -B tools/check_vision_model.py
+```
+
 ## 项目使用
 
 - ROS 真机驱动由 `zekeepcontroller` 调用 SDK；安装和启动步骤见[控制器说明](../src/zekeepcontroller/README.md)。
-- 视觉抓取直接调用 SDK 并独占机械臂串口；用法见[视觉抓取说明](../src/rebot_grasp/README.md)。
+- 视觉抓取直接调用 SDK 并独占机械臂串口；用法见[视觉抓取说明](../src/zekeep_grasp/README.md)。
 - ROS 驱动和直接 SDK 抓取不可同时连接同一机械臂。
 - 串口权限使用 `dialout` 组，不要用 `chmod 777` 放宽设备权限。
 

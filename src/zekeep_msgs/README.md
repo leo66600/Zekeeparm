@@ -5,8 +5,8 @@
 | 目录 | 接口 |
 | --- | --- |
 | `msg/` | `ArmStatus`、`JointMitCmd`、`JointMotorState`、`JointPosVelCmd` |
-| `srv/` | `GripperCommand`、`MoveToPoseIK`、`SetGripper`、`SetZero` |
-| `action/` | `GripperGrasp`、`MoveToPose` |
+| `srv/` | `GripperCommand`、`MoveToPoseIK`、`SetGripper`、`SetZero`、`WebTeachCommand`、`WebTaskLease` |
+| `action/` | `GripperGrasp`、`MoveToPose`、`WebGrasp` |
 
 字段和单位以 `.msg`、`.srv`、`.action` 文件为准。
 轨迹执行使用标准 `control_msgs/action/FollowJointTrajectory`；使能、失能、停止、回零
@@ -14,13 +14,13 @@
 
 ## 构建与查看
 
-先完成[环境安装](../../docs/INSTALL_PORTABLE.md)，设置实际 `ZKEEP_WS`：
+先完成[环境安装](../../README.md#一键安装)，设置实际 `ZKEEP_WS`：
 
 ```bash
 cd "$ZKEEP_WS"
 source "$ZKEEP_WS/tools/activate_ros.sh"
 python -m colcon build --base-paths src --packages-select zekeep_msgs
-source "$ZKEEP_WS/tools/activate_ros.sh"
+source install/setup.bash
 ros2 interface show zekeep_msgs/msg/ArmStatus
 ros2 interface show zekeep_msgs/srv/SetGripper
 ros2 interface show zekeep_msgs/action/MoveToPose

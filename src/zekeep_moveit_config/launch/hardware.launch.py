@@ -55,6 +55,8 @@ def generate_launch_description():
             arm_namespace_arg,
             model_arg,
             publish_worktable_arg,
+            DeclareLaunchArgument("shutdown_on_moveit_exit", default_value="true",
+                                  description="Shut down this launch if move_group exits"),
             OpaqueFunction(function=_launch_setup),
         ]
     )
@@ -65,7 +67,7 @@ def _launch_setup(context, *args, **kwargs):
     model = LaunchConfiguration("model").perform(context).strip().lower()
     if model != "sixaxis":
         raise ValueError(f"unsupported robot model: {model}")
-    arm_namespace = LaunchConfiguration("arm_namespace")
+    arm_namespace = (LaunchConfiguration("arm_namespace").perform(context) or "zekeep").strip("/")
 
     moveit_config = (
         MoveItConfigsBuilder("zekeep", package_name="zekeep_moveit_config")
@@ -82,13 +84,16 @@ def _launch_setup(context, *args, **kwargs):
         .to_moveit_configs()
     )
     moveit_params = build_moveit_parameters(moveit_config)
+    controllers = moveit_params["moveit_simple_controller_manager"]
+    controllers[arm_namespace] = controllers.pop("zekeep")
+    controllers["controller_names"] = [arm_namespace]
 
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
         parameters=[moveit_params],
-        remappings=[("/joint_states", ["/", arm_namespace, "/joint_states"])],
+        remappings=[("/joint_states", f"/{arm_namespace}/joint_states")],
     )
 
     rviz_config = PathJoinSubstitution(
@@ -106,7 +111,7 @@ def _launch_setup(context, *args, **kwargs):
         arguments=["-d", rviz_config],
         condition=IfCondition(LaunchConfiguration("use_rviz")),
         parameters=[moveit_params],
-        remappings=[("/joint_states", ["/", arm_namespace, "/joint_states"])],
+        remappings=[("/joint_states", f"/{arm_namespace}/joint_states")],
     )
 
     robot_state_publisher_node = Node(
@@ -115,7 +120,7 @@ def _launch_setup(context, *args, **kwargs):
         name="robot_state_publisher",
         output="both",
         parameters=[moveit_config.robot_description],
-        remappings=[("/joint_states", ["/", arm_namespace, "/joint_states"])],
+        remappings=[("/joint_states", f"/{arm_namespace}/joint_states")],
     )
 
     return [
@@ -133,6 +138,7 @@ def _launch_setup(context, *args, **kwargs):
                 on_exit=[
                     EmitEvent(event=Shutdown(reason="move_group exited"))
                 ],
-            )
+            ),
+            condition=IfCondition(LaunchConfiguration("shutdown_on_moveit_exit")),
         ),
     ]

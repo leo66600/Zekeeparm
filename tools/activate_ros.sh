@@ -2,7 +2,7 @@
 zekeep_workspace_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 zekeep_venv_dir="${ZKEEP_ROS_VENV:-$zekeep_workspace_dir/.venv-ros}"
 if [[ ! -f "$zekeep_venv_dir/bin/activate" ]]; then
-    echo "Create the ROS venv first; see docs/INSTALL_PORTABLE.md" >&2
+    echo "Create the ROS venv first; see README.md or docs/SDK_INSTALL.md" >&2
     return 1
 fi
 export PYTHONNOUSERSITE=1

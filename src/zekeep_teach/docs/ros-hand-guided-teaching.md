@@ -164,23 +164,54 @@ No new third-party dependency is introduced.
 
 ## Commands
 
+Complete the workspace installation first. In every terminal, set `ZKEEP_WS`
+to the actual workspace, for example:
+
 ```bash
-# Build ROS packages after controller/client interface changes
-cd /home/zekeep/Zekeeparm_ws
-source /opt/ros/humble/setup.bash
-colcon build --symlink-install --packages-select zekeepcontroller zekeep_bringup zekeep_teach
+export ZKEEP_WS="$HOME/Desktop/Zekeeparm"
+```
 
-# Start the ROS hardware controller
-cd /home/zekeep/Zekeeparm_ws
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-ros2 launch zekeep_bringup bringup.launch.py use_rviz:=true
+Build after controller/client interface changes:
 
-# Run the supervised teaching tool
-cd /home/zekeep/Zekeeparm_ws
+```bash
+cd "$ZKEEP_WS"
+source tools/activate_ros.sh
+python -m colcon build --symlink-install --packages-select \
+  zekeep_msgs zekeepcontroller zekeep_bringup zekeep_moveit_config zekeep_teach
+```
+
+Terminal 1: start the sole hardware driver. Motors are not automatically enabled.
+
+```bash
+cd "$ZKEEP_WS"
+source tools/activate_ros.sh
+ros2 launch zekeep_bringup driver.launch.py
+```
+
+Terminal 2: start MoveIt to validate safe-home paths. Do not start a second
+MoveIt stack if one is already running.
+
+```bash
+cd "$ZKEEP_WS"
 source install/setup.bash
+ros2 launch zekeep_moveit_config hardware.launch.py arm_namespace:=zekeep
+```
+
+Terminal 3: confirm fresh status and joint feedback, then run teaching.
+
+```bash
+cd "$ZKEEP_WS"
+source install/setup.bash
+ros2 topic echo /zekeep/arm_status --once
+ros2 topic echo /zekeep/joint_states --once
 ros2 run zekeep_teach teach_replay
 ```
+
+Entering gravity compensation can enable the motors; support the arm and keep
+the operator present. Keep the driver and MoveIt running during teaching exit.
+After teaching exits successfully, exit the driver and wait for successful
+completion before closing MoveIt. A failed safe-home keeps the exit blocked;
+resolve the fault and retry instead of force-killing the driver.
 
 ## Project Structure
 

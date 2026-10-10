@@ -143,6 +143,9 @@ class HardwareManager:
         if self._gravity_feedforward_mask.shape != (len(self._arm_group.joint_names),):
             raise ValueError("gravity feedforward mask does not match arm joints")
         self._gripper_group = self._robot.groups.get("gripper")
+        if self._gripper_group is not None:
+            self._gripper_mit_kp = self._gripper_group._mit_kp.copy()
+            self._gripper_mit_kd = self._gripper_group._mit_kd.copy()
         self._joint_mapping = joint_mapping_from_config(
             hardware_data,
             self._arm_group.joint_names,
@@ -1300,6 +1303,9 @@ class HardwareManager:
         target = float(position)
         self._gripper_mapping.validate_positions([target])
         self._gripper_grasp_state = None
+        # Free MIT mode clears these gains; recover the configured position gains.
+        self._gripper_group._mit_kp = self._gripper_mit_kp.copy()
+        self._gripper_group._mit_kd = self._gripper_mit_kd.copy()
         self._endpos_ctrl.set_gripper_target(target)
         self._gripper_group.send_mit(
             self._gripper_mapping.positions_to_motor([target]),

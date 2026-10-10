@@ -1,11 +1,12 @@
 # zekeep_bringup
 
 六轴机械臂的启动文件、URDF、网格、硬件配置、RViz 和网页资源包。
-先按[安装说明](../../docs/INSTALL_PORTABLE.md)安装依赖并构建。
+先按[安装说明](../../README.md#一键安装)安装依赖并构建。
 每个终端设置 `ZKEEP_WS` 为实际工作区绝对路径，再加载：
 
 ```bash
-source "$ZKEEP_WS/tools/activate_ros.sh"
+cd "$ZKEEP_WS"
+source install/setup.bash
 ```
 
 ## 当前模型与标定
@@ -14,20 +15,23 @@ source "$ZKEEP_WS/tools/activate_ros.sh"
 来源于 0918 CAD，已删除 `rod_left_link`、`rod_right_link` 及对应网格。
 夹爪使用 `gripper_base`、`left_link`、`right_link`，右指 mimic 左指。
 
-ROS、视觉 SDK 和网页范围：J1 `[-2.58, 2.58] rad`，J2/J3 `[0, 3.7] rad`，
+ROS、视觉 SDK 和网页范围：J1 `[-2.58, 2.58] rad`，J2 `[0, 3.7] rad`、J3 `[-0.01, 3.7] rad`，
 J4–J6 `[-1.57, 1.57] rad`。ROS/视觉电机到模型的六轴方向均为 `-1`。
 独立 LeRobot 遥操作保留原有角度制标定，不套用这组方向。
-当前 joint6 零位法兰相对旧坐标系绕 joint6 自身轴增加 `+90°`，两份 URDF 已同步。
+当前 joint6 零位法兰相对旧坐标系绕 joint6 自身轴增加 `+90°`。
+ROS 主模型与 SDK 的 `config/sixaxis.urdf` 内容一致，保留 `official_tcp` 兼容别名；
+SDK 六轴 IK 加载时固定两侧夹指关节，质量与惯量沿用 ROS 模型。
 因此准备位 TCP 姿态的 roll 已重新计算；准备位关节值和限位不变。
-当前手眼标定已完成；仅换电脑且设备、安装、场景未变时可沿用，见[视觉说明](../rebot_grasp/README.md)。
+当前手眼标定已完成；仅换电脑且设备、安装、场景未变时可沿用，见[视觉说明](../zekeep_grasp/README.md)。
 
 标准配置 `config/zekeep_hardware.yaml` 使用 `posvel` 控制，
 `motion_authorized=true`、`supervised_trial_authorized=true`，启动默认不使能。
 `dynamics_verified=false`，普通轨迹重力前馈关闭。手眼标定完成不等于动力学已验证。
 配置在启动时读取；修改源码配置后需重新构建并重启驱动。
 
-夹爪电机硬限位 `[0, 1.57] rad`，标准 ROS 开爪目标 `1.15 rad`，最大开口配置
-`0.070 m`。电机角度与 URDF 单指平移量不是同一单位。
+夹爪电机硬限位与全开目标统一为 `[0, 1.35] rad`。线性映射基准为
+`1.45 rad = 70 mm`，因此最大允许开口约 `65.17 mm`；URDF 单指行程上限
+约 `0.0325862 m`。70 mm 只是映射基准，不能作为当前运动目标。
 
 ## 启动入口
 

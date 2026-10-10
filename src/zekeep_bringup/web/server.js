@@ -4,6 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+const { URL } = require('url');
+
 // Load .env file (does not override existing env vars)
 (function loadEnv() {
   const envPath = path.join(__dirname, '.env');
@@ -33,6 +35,11 @@ const URDF_FILE = path.join(BRINGUP_DIR, 'description', 'urdf', 'sixaxis.urdf');
 const MESHES_DIR = path.join(BRINGUP_DIR, 'description', 'meshes');
 const DEFAULT_KEY_FILE = path.join(ROOT, '.certs', 'zekeep-local-server.key');
 const DEFAULT_CERT_FILE = path.join(ROOT, '.certs', 'zekeep-local-server.crt');
+
+// MCP/LLM 配置（前端只负责代理到虚拟机的 text-agent HTTP 服务）
+const DEFAULT_TEXT_AGENT_URL = process.env.ZKEEP_TEXT_AGENT_URL || 'http://localhost:8082';
+const DEFAULT_MCP_URL = process.env.ZKEEP_MCP_URL || `${DEFAULT_TEXT_AGENT_URL.replace(/\/+$/, '')}/mcp`;
+const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -108,13 +115,35 @@ function requestHandler(req, res) {
     return;
   }
 
+  // MCP 配置端点
+  if (urlPath === '/api/mcp/config') {
+    sendJson(res, 200, {
+      textAgentUrl: DEFAULT_TEXT_AGENT_URL,
+      mcpUrl: DEFAULT_MCP_URL
+    });
+    return;
+  }
+
+  const agentRoutes = {
+    '/api/llm/chat': '/plan', '/api/llm/execute': '/execute',
+    '/api/llm/cancel': '/cancel', '/api/llm/health': '/health',
+    '/api/llm/status': '/status'
+  };
+  if (agentRoutes[urlPath]) {
+    handleLocalBackend(req, res, DEFAULT_TEXT_AGENT_URL, agentRoutes[urlPath]);
+    return;
+  }
+  if (urlPath === '/api/mcp/rpc') {
+    handleLocalBackend(req, res, DEFAULT_MCP_URL, '');
+    return;
+  }
   if (urlPath === '/api/config') {
     sendJson(res, 200, {
       name: 'Six-axis reBot Arm',
       joints: [
         { name: 'joint1', min: -2.58, max: 2.58, home: 0, maxVelocity: 1.5 },
         { name: 'joint2', min: 0, max: 3.7, home: 0, maxVelocity: 1.5 },
-        { name: 'joint3', min: 0, max: 3.7, home: 0, maxVelocity: 1.5 },
+        { name: 'joint3', min: -0.01, max: 3.7, home: 0, maxVelocity: 1.5 },
         { name: 'joint4', min: -1.57, max: 1.57, home: 0, maxVelocity: 1.5 },
         { name: 'joint5', min: -1.57, max: 1.57, home: 0, maxVelocity: 1.5 },
         { name: 'joint6', min: -1.57, max: 1.57, home: 0, maxVelocity: 1.5 }
@@ -131,9 +160,9 @@ function requestHandler(req, res) {
         name: 'gripper',
         motorId: '0x07',
         closedMeters: 0,
-        openMeters: 0.07,
-        motorOpenRadians: 1.3,
-        urdfFingerTravelMeters: 0.035,
+        openMeters: 0.06517241379310346,
+        motorOpenRadians: 1.35,
+        urdfFingerTravelMeters: 0.03258620689655173,
         rosService: '/zekeep/gripper/set'
       }
     });
@@ -179,6 +208,145 @@ function createServer() {
 }
 
 const server = createServer();
+
+// 读取请求体
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    let bodyBytes = 0;
+    let rejected = false;
+    req.on('data', chunk => {
+      bodyBytes += Buffer.byteLength(chunk);
+      if (bodyBytes > MAX_REQUEST_BODY_BYTES && !rejected) {
+        rejected = true;
+        req.destroy();
+        reject(new Error('request body too large'));
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', () => {
+      if (!rejected) resolve(body);
+    });
+    req.on('error', reject);
+  });
+}
+
+// HTTP 请求代理
+function proxyRequest(targetUrl, options, body, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    let url;
+    try {
+      url = new URL(targetUrl);
+    } catch (e) {
+      reject(new Error(`Invalid URL: ${targetUrl}`));
+      return;
+    }
+    const lib = url.protocol === 'https:' ? https : http;
+    const reqOptions = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname + url.search,
+      method: options.method || 'POST',
+      timeout: timeoutMs,
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        ...options.headers
+      }
+    };
+
+    const proxyReq = lib.request(reqOptions, (proxyRes) => {
+      let data = '';
+      // SSE 是流式响应，收到 headers 后立即返回初始数据，不等 end
+      const contentType = proxyRes.headers['content-type'] || '';
+      const isSSE = contentType.includes('text/event-stream');
+
+      if (isSSE) {
+        // 流式响应：读取直到遇到第一个完整事件或超时
+        let buffer = '';
+        const readTimeout = setTimeout(() => {
+          resolve({
+            status: proxyRes.statusCode,
+            headers: proxyRes.headers,
+            body: buffer
+          });
+          proxyReq.destroy();
+        }, timeoutMs);
+
+        proxyRes.on('data', chunk => {
+          buffer += chunk.toString('utf8');
+          // 如果收到完整的事件（data: ... \n\n），立即返回
+          if (buffer.includes('\n\n')) {
+            clearTimeout(readTimeout);
+            resolve({
+              status: proxyRes.statusCode,
+              headers: proxyRes.headers,
+              body: buffer
+            });
+            proxyReq.destroy();
+          }
+        });
+        proxyRes.on('end', () => {
+          clearTimeout(readTimeout);
+          resolve({
+            status: proxyRes.statusCode,
+            headers: proxyRes.headers,
+            body: buffer
+          });
+        });
+        proxyRes.on('error', (err) => {
+          clearTimeout(readTimeout);
+          reject(err);
+        });
+      } else {
+        proxyRes.on('data', chunk => { data += chunk; if (Buffer.byteLength(data) > 4 * 1024 * 1024) { proxyReq.destroy(); reject(new Error('Backend response too large')); } });
+        proxyRes.on('end', () => {
+          resolve({
+            status: proxyRes.statusCode,
+            headers: proxyRes.headers,
+            body: data
+          });
+        });
+        proxyRes.on('error', (err) => reject(err));
+      }
+    });
+
+    proxyReq.on('timeout', () => {
+      proxyReq.destroy();
+      reject(new Error(`Request timeout after ${timeoutMs}ms: ${targetUrl}`));
+    });
+    proxyReq.on('error', reject);
+
+    if (body) {
+      proxyReq.write(body);
+    }
+    proxyReq.end();
+  });
+}
+
+// Fixed routes only. Browser requests cannot choose upstream URLs or ROS endpoints.
+async function handleLocalBackend(req, res, backend, endpoint) {
+  try {
+    const expected = ['health', 'status', 'state', 'camera'].some(name => endpoint === `/${name}`) ? 'GET' : 'POST';
+    if (req.method !== expected) return sendJson(res, 405, {ok: false, error: 'Method not allowed'});
+    const host = req.headers.host || '';
+    if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return sendJson(res, 403, {ok: false, error: 'Local host required'});
+    if (req.headers.origin && req.headers.origin !== `${USE_HTTPS ? 'https' : 'http'}://${host}`) {
+      return sendJson(res, 403, {ok: false, error: 'Same origin required'});
+    }
+    if (expected === 'POST' && !(req.headers['content-type'] || '').startsWith('application/json')) {
+      return sendJson(res, 415, {ok: false, error: 'JSON required'});
+    }
+    const body = expected === 'POST' ? await readBody(req) : '';
+    if (body && Buffer.byteLength(body) > 16384) return sendJson(res, 413, {ok: false, error: 'Body too large'});
+    const response = await proxyRequest(`${backend.replace(/\/+$/, '')}${endpoint}`, {method: expected}, body, endpoint === '/execute' ? 1810000 : 90000);
+    res.writeHead(response.status, {'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store'});
+    res.end(response.body);
+  } catch (error) {
+    sendJson(res, 502, {ok: false, error: `Backend unavailable: ${error.message}`});
+  }
+}
 
 server.listen(PORT, '127.0.0.1', () => {
   const protocol = USE_HTTPS ? 'https' : 'http';

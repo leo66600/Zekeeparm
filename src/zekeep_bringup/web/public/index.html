@@ -3,36 +3,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111211">
+  <meta name="theme-color" content="#f5f4f0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="指擎六轴机械臂网页仿真控制器">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>指擎六轴机械臂网页仿真控制器</title>
+  <meta name="apple-mobile-web-app-title" content="ZK-EM600擎栈机械臂网页仿真控制器">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>ZK-EM600擎栈机械臂网页仿真控制器</title>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="apple-touch-icon" href="/favicon.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/css/rebot-sim.css?v=20260827-jointlimit1">
+  <link rel="stylesheet" href="/css/rebot-sim.css?v=20261009-black-logo">
 </head>
 <body>
   <main class="app-shell">
-    <section class="viewport" id="viewport">
-      <div id="scene-host" class="scene-host"></div>
-      <div id="drag-marker" class="drag-marker" title="拖拽 TCP" data-i18n-title="app.dragTcp"></div>
-
-      <header class="hud top-hud">
-        <div class="brand-lockup">
-          <img class="brand-logo" src="/logo.jpeg" alt="ZEKEEP 指擎科技">
-        </div>
-        <div class="brand-copy">
-          <p class="eyebrow" data-i18n="app.eyebrow">指擎六轴机械臂</p>
-          <h1 data-i18n="app.title">指擎六轴机械臂网页仿真控制器</h1>
-        </div>
+    <header class="workspace-header">
+      <div class="brand-lockup">
+        <img class="brand-logo" src="/logo-black.png" alt="ZEKEEP 指擎科技">
+      </div>
+      <div class="brand-copy">
+        <p class="eyebrow" data-i18n="app.eyebrow">ZEKEEP ROBOTICS</p>
+        <h1 data-i18n="app.title">ZK-EM600擎栈机械臂网页仿真控制器</h1>
+      </div>
+      <div class="header-tools">
         <div class="status-pill" id="load-status">
           <span class="status-dot"></span>
           <span data-i18n="app.loading">加载中</span>
         </div>
-      </header>
+        <div class="lang-toggle" id="lang-toggle" role="group" aria-label="语言 / Language">
+          <button type="button" data-lang="zh" class="lang-btn active">中</button>
+          <button type="button" data-lang="en" class="lang-btn">EN</button>
+        </div>
+        <button class="icon-btn" id="ros-help-top" title="功能帮助" data-i18n-title="panel.help">?</button>
+        <button class="icon-btn" id="reset-camera" title="重置视角" data-i18n-title="panel.reset">↺</button>
+      </div>
+    </header>
+    <section class="viewport" id="viewport">
+      <div id="scene-host" class="scene-host"></div>
+      <button type="button" id="drag-marker" class="drag-marker" aria-label="TCP" data-i18n-title="app.dragTcp"></button>
 
       <div class="hud pose-hud">
         <div>
@@ -64,13 +71,7 @@
           <h2 data-i18n="panel.title">仿真控制台</h2>
         </div>
         <div class="panel-actions">
-          <div class="lang-toggle" id="lang-toggle" role="group" aria-label="语言 / Language">
-            <button type="button" data-lang="zh" class="lang-btn active">中</button>
-            <button type="button" data-lang="en" class="lang-btn">EN</button>
-          </div>
-          <button class="icon-btn" id="ros-help-top" title="功能帮助" data-i18n-title="panel.help">?</button>
           <button class="icon-btn" id="sidebar-collapse" title="折叠侧边栏" data-i18n-title="panel.collapse">◀</button>
-          <button class="icon-btn" id="reset-camera" title="重置视角" data-i18n-title="panel.reset">↺</button>
         </div>
       </div>
 
@@ -84,7 +85,7 @@
        </div>
         <label class="field-row">
           <span data-i18n="ros.ws">WebSocket</span>
-          <input id="ros-url" type="text" placeholder="ws://localhost:9090" spellcheck="false">
+          <input id="ros-url" type="text" placeholder="ws://127.0.0.1:9090" spellcheck="false">
         </label>
         <div class="button-grid">
           <button type="button" id="ros-connect" data-i18n="ros.connect">连接 ROS</button>
@@ -104,6 +105,7 @@
         </label>
         <div class="button-grid">
           <button type="button" id="ros-enable" data-i18n="ros.enable">使能</button>
+          <button type="button" id="ros-stop" data-i18n="p01.stop">停止并保持</button>
           <button type="button" id="ros-disable" data-i18n="ros.disable">失能</button>
           <button type="button" id="ros-safe-home" data-i18n="ros.safeHome">安全回零</button>
           <button type="button" id="ros-open-gripper" data-i18n="ros.openGripper">夹爪打开</button>
@@ -122,26 +124,22 @@
           <span data-i18n="ros.feedbackError">反馈差值</span>
           <strong id="ros-feedback-error" data-i18n="ros.feedbackWaiting">等待 /joint_states</strong>
         </div>
+        <p class="teach-status" id="ros-execution-status" role="status" data-i18n="p01.idle">等待执行</p>
+        <p class="teach-status" id="ros-feedback-source" data-i18n="p01.localPreview">本地预览，无 ROS 反馈</p>
+        <p class="teach-status" id="ros-gripper-mapping" data-i18n="p01.mappingUnavailable">夹爪映射未核对，禁止实机夹爪命令</p>
+        <button type="button" class="secondary-btn" id="ros-mapping-query" data-i18n="p01.mappingQuery">核对夹爪配置</button>
         <p class="ros-message" id="ros-message" data-i18n="ros.message">先在 Ubuntu 虚拟机启动 rosbridge，再输入地址连接。</p>
-      </div>
-
-      <div class="section log-section">
-        <h3 data-i18n="log.title">ROS 实时日志</h3>
-        <div class="button-grid">
-          <button type="button" id="ros-clear-log" data-i18n="log.clear">清空日志</button>
-        </div>
-        <div class="ros-log" id="ros-log"></div>
       </div>
 
       <div class="section safety-section">
         <h3 data-i18n="safety.title">安全限制</h3>
         <label class="field-row">
           <span data-i18n="safety.vlim">关节速度上限 rad/s</span>
-          <input id="ros-vlim" type="number" min="0.05" max="1.5" step="0.05" value="0.2">
+          <input id="ros-vlim" type="number" min="0.05" max="1.5" step="0.05" value="0.3">
         </label>
         <label class="field-row">
           <span data-i18n="safety.trajDuration">轨迹总时长 s</span>
-          <input id="ros-trajectory-duration" type="number" min="1" max="30" step="0.5" value="6">
+          <input id="ros-trajectory-duration" type="number" min="1" max="30" step="0.5" value="2">
         </label>
       </div>
 
@@ -152,63 +150,68 @@
         <p class="teach-status" id="preset-status" data-i18n="preset.noneSelected">尚未选择姿态</p>
       </div>
 
-      <dialog id="ros-help-dialog" style="border-radius:12px;border:1px solid #444;padding:28px;max-width:620px;max-height:85vh;overflow-y:auto;color:#e0e0e0;background:#1e1e2e;">
-        <h3 style="margin-top:0;color:#7ec8e0;" data-i18n="help.title">指擎六轴机械臂网页仿真控制器 — 功能说明</h3>
+      <div class="section joint-section">
+        <h3 data-i18n="joint.title">关节角度</h3>
+        <div id="joint-controls" class="joint-list"></div>
+      </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s1.title">一、连接与模式</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+      <dialog id="ros-help-dialog">
+        <h3 data-i18n="help.title">ZK-EM600擎栈机械臂网页仿真控制器 — 功能说明</h3>
+
+        <h4 data-i18n="help.s1.title">一、连接与模式</h4>
+        <div>
           <p data-i18n-html="help.s1.connect"><b>连接 ROS</b>：输入 rosbridge 的 WebSocket 地址（如 <code>ws://localhost:9090</code>），点击连接。连接后自动订阅关节状态、夹爪状态和机械臂状态。</p>
           <p data-i18n-html="help.s1.disconnect"><b>断开</b>：断开与 rosbridge 的连接，停止所有订阅和发布。</p>
           <p data-i18n-html="help.s1.control"><b>控制锁</b>：勾选后允许网页向 ROS 发送控制命令。未勾选时只动 3D 模型，不发 ROS 命令。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s2.title">二、机械臂控制</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+        <h4 data-i18n="help.s2.title">二、机械臂控制</h4>
+        <div>
           <p data-i18n-html="help.s2.enable"><b>使能</b>：给所有电机通电，机械臂进入可接受命令状态。每次重启控制器后需重新使能。预期：日志显示「enabled」，状态栏显示「已使能」。</p>
           <p data-i18n-html="help.s2.disable"><b>失能</b>：所有电机断电，手臂自由下垂。紧急情况或长时间不用时使用。失能后不接受运动命令。</p>
           <p data-i18n-html="help.s2.home"><b>安全回零</b>：平滑插值回到所有关节零位（0°），速度受限。建议在异常或任务结束后使用。预期：6 个关节缓慢回到 0°，3D 模型同步跟随。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s3.title">三、夹爪控制</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
-          <p data-i18n-html="help.s3.open"><b>夹爪打开</b>：夹爪运动到最大开口（70mm）。预期：夹爪张开，3D 模型夹爪同步。</p>
+        <h4 data-i18n="help.s3.title">三、夹爪控制</h4>
+        <div>
+          <p data-i18n-html="help.s3.open"><b>夹爪打开</b>：夹爪运动到最大开口（65.17mm）。预期：夹爪张开，3D 模型夹爪同步。</p>
           <p data-i18n-html="help.s3.close"><b>夹爪闭合</b>：夹爪运动到完全闭合（0mm），施加默认 0.3Nm 夹持力。预期：夹爪闭合并保持夹持力。</p>
-          <p data-i18n-html="help.s3.slider"><b>夹爪滑块</b>：拖动可设置任意开口（0~70mm），实时控制夹爪宽度。</p>
+          <p data-i18n-html="help.s3.slider"><b>夹爪滑块</b>：拖动可设置任意开口（0~65.17mm），实时控制夹爪宽度。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s4.title">四、重力补偿</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+        <h4 data-i18n="help.s4.title">四、重力补偿</h4>
+        <div>
           <p data-i18n-html="help.s4.start"><b>启动重补</b>：切换到 MIT 模式，使用 Pinocchio 计算重力力矩并叠加低增益位置保持。启动后手臂可悬停不掉，松手后保持当前姿态。预期：日志显示「gravity compensation started」，状态栏显示「运行中」。</p>
           <p data-i18n-html="help.s4.stop"><b>停止重补</b>：切回 POS_VEL 位置模式，启动 hold 循环保持当前姿态。预期：日志显示「gravity compensation stopped」，状态栏显示「未运行」。</p>
           <p data-i18n-html="help.s4.query"><b>查询状态</b>：查询重力补偿是否运行中，以及锁定目标角度（启动时记录的关节角度）。用于在不改变状态的情况下确认当前运行状态。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s5.title">五、Pose 运动</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+        <h4 data-i18n="help.s5.title">五、Pose 运动</h4>
+        <div>
           <p data-i18n-html="help.s5.xyz"><b>X / Y / Z</b>：输入末端目标位置（米），默认 X=0.30, Y=0.00, Z=0.30。</p>
           <p data-i18n-html="help.s5.duration"><b>时长</b>：IK 平滑轨迹的执行时间（0.4~8 秒），默认 2.0 秒；时间越长，运动越慢。</p>
           <p data-i18n-html="help.s5.ik"><b>IK 运动</b>：控制锁关闭时只运行网页仿真；连接 ROS 并打开控制锁后，点击即发送真实机械臂。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s6.title">六、关节滑块</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+        <h4 data-i18n="help.s6.title">六、关节滑块</h4>
+        <div>
           <p data-i18n-html="help.s6.body">拖动 joint1~joint6 滑块，或直接输入 rad 数值控制单个关节角度。打开控制锁后，释放滑块或提交输入框即发送实机。建议从末端关节（joint5/joint6）开始小幅度测试。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s7.title">七、诊断与日志</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+        <h4 data-i18n="help.s7.title">七、诊断与日志</h4>
+        <div>
           <p data-i18n-html="help.s7.diag"><b>检测 ROS</b>：扫描当前 ROS 环境的 topic 和 service，检查关键接口是否可用。</p>
           <p data-i18n-html="help.s7.log"><b>ROS 实时日志</b>：显示所有 ROS 操作的请求和响应，包括成功/失败/警告。排查问题时先看这里。</p>
           <p data-i18n-html="help.s7.preset"><b>姿态预设与高级控制</b>：控制锁关闭时只作用于网页模型；打开后相关命令直接发送实机。</p>
         </div>
 
-        <h4 style="color:#d7fff4;margin-bottom:4px;" data-i18n="help.s8.title">八、实机控制流程</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;">
+        <h4 data-i18n="help.s8.title">八、实机控制流程</h4>
+        <div>
           <p data-i18n-html="help.s8.body"><b>统一控制流程</b>：控制锁是网页控制实机的唯一开关。打开后，运动按钮和轨迹回放会直接发送实机。</p>
         </div>
 
-        <h4 style="color:#ffe0b0;margin-bottom:4px;" data-i18n="help.warn.title">⚠ 安全须知</h4>
-        <div style="line-height:1.7;font-size:13px;margin-bottom:12px;color:#ffe0b0;">
+        <h4 data-i18n="help.warn.title">⚠ 安全须知</h4>
+        <div>
           <p data-i18n-html="help.warn.1">1. 首次使用真机时，先用 Fake Driver 验证关节方向和限位。</p>
           <p data-i18n-html="help.warn.2">2. 连接真机控制器时命令会驱动真实硬件，请谨慎操作。</p>
           <p data-i18n-html="help.warn.3">3. 关节滑块建议从末端关节小幅度开始，确认方向正确后再大范围运动。</p>
@@ -216,8 +219,8 @@
           <p data-i18n-html="help.warn.5">5. 打开控制锁后操作会直接驱动实机，不操作时请及时关闭控制锁。</p>
         </div>
 
-        <div style="text-align:right;margin-top:16px;">
-          <button type="button" id="ros-help-close" style="padding:8px 28px;border-radius:6px;border:1px solid #555;background:#333;color:#e0e0e0;cursor:pointer;font-size:14px;" data-i18n="help.close">关闭</button>
+        <div>
+          <button type="button" id="ros-help-close" data-i18n="help.close">关闭</button>
         </div>
       </dialog>
 
@@ -229,15 +232,87 @@
           <label><span data-i18n="action.z">Z m</span><input id="ros-pose-z" type="number" step="0.005" value="0.30"></label>
           <label><span data-i18n="action.duration">时长 s</span><input id="ros-pose-duration" type="number" min="0.4" max="8" step="0.2" value="2.0"></label>
         </div>
+        <p class="teach-status" data-i18n="action.previewHint">调整 XYZ 和时长可预览目标；保持当前末端姿态，点击 IK 运动后执行。</p>
+        <p id="ros-pose-preview-status" class="teach-status" role="status" aria-live="polite"></p>
         <div class="button-grid">
           <button type="button" id="ros-check-ik" data-i18n="action.ik">IK 运动</button>
+          <button type="button" id="ros-pose-preview-toggle" aria-pressed="true" data-i18n="action.previewHide">关闭预览</button>
         </div>
       </div>
 
-      <div class="section joint-section">
-        <h3 data-i18n="joint.title">关节角度</h3>
-        <div id="joint-controls" class="joint-list"></div>
-      </div>
+      <details class="section advanced-section">
+        <summary data-i18n="adv.title">高级控制</summary>
+        <div class="button-grid">
+          <button type="button" id="toggle-drag" data-i18n="adv.drag">启用 TCP 拖拽</button>
+          <button type="button" id="tcp-execute" data-i18n="p01.executeTcp">执行 TCP 目标</button>
+          <button type="button" id="stop-path" data-i18n="p01.stop">停止并保持</button>
+        </div>
+        <p class="teach-status" data-i18n="p01.dragPreview">TCP 拖拽仅预览，点击执行才提交</p>
+      </details>
+
+      <details class="section teach-section">
+        <summary data-i18n="p01.teachTitle">网页示教（预览轨迹）</summary>
+        <p class="teach-status" data-i18n="p01.teachHint">录制只编辑网页模型。控制锁关闭时本地回放；打开后回放实机并等待结果。</p>
+        <div class="button-grid teach-buttons">
+          <button type="button" id="teach-record" data-i18n="teach.record">开始录制</button>
+          <button type="button" id="teach-replay" data-i18n="teach.replay">回放</button>
+          <button type="button" id="teach-export" data-i18n="teach.export">导出 ROS waypoint</button>
+          <button type="button" id="teach-clear" data-i18n="teach.clear">清空</button>
+        </div>
+        <p class="teach-status" id="teach-status" role="status" data-i18n="teach.status">未录制</p>
+        <label class="field-row" for="teach-export-text"><span data-i18n="p01.jsonLabel">waypoints JSON（夹爪单位 m）</span></label>
+        <textarea id="teach-export-text" class="teach-export" spellcheck="false" data-i18n-ph="teach.placeholder"></textarea>
+        <button type="button" class="secondary-btn" id="teach-import" data-i18n="p01.import">校验并导入 JSON</button>
+        <label class="field-row"><span data-i18n="p01.importFile">导入 JSON 文件（最多 4 MiB）</span><input type="file" id="teach-import-file" accept=".json,application/json"></label>
+      </details>
+
+
+      <details class="section hardware-teach-section">
+        <summary data-i18n="p23.teachTitle">实机示教（真实关节反馈）</summary>
+        <label class="switch-row"><input type="checkbox" id="hardware-teach-supervised"><span data-i18n="p23.attended">确认现场有人监督，重力补偿校验已完成</span></label>
+        <div class="button-grid">
+          <button type="button" data-teach-command="begin" data-i18n="p23.begin">进入拖动示教</button>
+          <button type="button" data-teach-command="hold" data-i18n="p23.hold">结束录制并保持</button>
+          <button type="button" data-teach-command="capture" data-i18n="p23.capture">记录静止点</button>
+          <button type="button" data-teach-command="record" data-i18n="p23.record">开始/停止连续录制</button>
+          <button type="button" data-teach-command="replay_points" data-i18n="p23.replayPoints">低速回放点</button>
+          <button type="button" data-teach-command="replay_path" data-i18n="p23.replayPath">低速回放路径</button>
+          <button type="button" id="hardware-teach-clear" data-teach-command="clear" data-i18n="p23.clear" disabled>清除本次记录</button>
+          <button type="button" data-teach-command="release" data-i18n="p23.release">退出会话并保持</button>
+          <button type="button" data-teach-command="exit" data-i18n="p23.exit">安全回零、失能退出</button>
+        </div>
+        <p class="teach-status" id="hardware-teach-status" role="status" data-i18n="p23.unavailable">等待任务后端</p>
+        <p class="teach-status" data-i18n="p23.newRecordingHint">开始下一轮示教前清除本次记录；已保存的轨迹文件保留。</p>
+        <label class="field-row"><span data-i18n="p23.sessionName">保存名称（不会覆盖同名文件）</span><input id="hardware-teach-name" type="text" maxlength="64" value="teach-session"></label>
+        <button type="button" class="secondary-btn" id="hardware-teach-save" data-i18n="p23.save">保存会话</button>
+        <label class="field-row"><span data-i18n="p23.sessions">已保存的实机轨迹</span><select id="hardware-teach-files"></select></label>
+        <button type="button" class="secondary-btn" id="hardware-teach-load" data-i18n="p23.load">保持状态下加载</button>
+      </details>
+
+      <details class="section llm-section">
+        <summary data-i18n="p45.aiTitle">LLM / MCP 文本控制</summary>
+        <p class="teach-status" data-i18n="p45.aiHint">聊天只生成计划。grasp 只闭合夹爪，不会移动到视觉目标。</p>
+        <p id="llm-status" class="teach-status" role="status" data-i18n="p45.disconnected">未连接</p>
+        <div class="button-grid"><button id="llm-start" data-i18n="p45.connect">连接助手</button><button id="llm-stop" data-i18n="p45.chatStop">断开助手</button></div>
+        <label class="field-row" for="llm-input"><span data-i18n="p45.task">自然语言任务</span></label>
+        <textarea id="llm-input" class="teach-export" maxlength="1000"></textarea>
+        <button id="llm-send" disabled data-i18n="p45.plan">生成计划</button>
+        <pre id="llm-plan" class="teach-export" aria-live="polite"></pre>
+        <label class="switch-row"><input type="checkbox" id="llm-supervised"><span data-i18n="p45.supervised">确认现场监督；重力补偿前已完成动力学验证</span></label>
+        <div class="button-grid"><button id="llm-confirm" disabled data-i18n="p45.execute">确认执行计划</button><button id="llm-cancel" data-i18n="p45.cancel">取消 AI 任务</button></div>
+        <div id="llm-chat-messages" class="p45-events" role="log" aria-live="polite"></div>
+      </details>
+
+      <details class="section mcp-section">
+        <summary data-i18n="p45.mcpTitle">MCP 工具调试</summary>
+        <p class="teach-status" data-i18n="p45.mcpHint">控制工具需人工确认生成的一次性授权。模型不能直接发起运动。</p>
+        <button id="mcp-refresh" data-i18n="p45.tools">读取工具列表</button>
+        <label class="field-row" for="mcp-tools"><span data-i18n="p45.tool">工具</span><select id="mcp-tools"></select></label>
+        <label class="field-row" for="mcp-arguments"><span data-i18n="p45.arguments">参数 JSON</span></label>
+        <textarea id="mcp-arguments" class="teach-export">{}</textarea>
+        <button id="mcp-run" data-i18n="p45.call">调用工具</button>
+        <pre id="mcp-result" class="teach-export" aria-live="polite"></pre>
+      </details>
 
       <div class="section layer-section">
         <h3 data-i18n="layer.title">空间图层</h3>
@@ -251,10 +326,18 @@
         </label>
       </div>
 
+      <div class="section log-section">
+        <h3 data-i18n="log.title">ROS 实时日志</h3>
+        <div class="button-grid">
+          <button type="button" id="ros-clear-log" data-i18n="log.clear">清空日志</button>
+        </div>
+        <div class="ros-log" id="ros-log"></div>
+      </div>
+
       <div class="section metrics metrics-section">
         <h3 data-i18n="metrics.title">机械臂信息</h3>
         <dl>
-          <div><dt data-i18n="metrics.model">模型</dt><dd data-i18n="metrics.modelVal">指擎六轴机械臂</dd></div>
+          <div><dt data-i18n="metrics.model">模型</dt><dd data-i18n="metrics.modelVal">ZK-EM600 擎栈机械臂</dd></div>
           <div><dt data-i18n="metrics.dof">自由度</dt><dd data-i18n="metrics.dofVal">6 DOF + 夹爪</dd></div>
           <div><dt data-i18n="metrics.payload">建议负载</dt><dd data-i18n="metrics.payloadVal">1.5 kg</dd></div>
           <div><dt data-i18n="metrics.frame">坐标</dt><dd data-i18n="metrics.frameVal">X 前 / Y 左 / Z 上</dd></div>
@@ -265,16 +348,19 @@
 
   <div class="loading-mask" id="loading-mask">
     <div class="loader"></div>
-    <p id="loading-text" data-i18n="load.text">正在加载指擎六轴机械臂模型...</p>
+    <p id="loading-text" data-i18n="load.text">正在加载 ZK-EM600 擎栈机械臂模型...</p>
   </div>
 
   <script src="/lib/three-r128.min.js"></script>
   <script src="/lib/STLLoader-umd.js"></script>
   <script src="/lib/URDFLoader.js"></script>
-  <script src="/js/i18n.js?v=20260827-jointlimit1"></script>
-  <script src="/js/ros/rebot-control-policy.js?v=20260827-iktraj2"></script>
-  <script src="/js/ros/rebot-ros-client.js?v=20260826-safety1"></script>
-  <script src="/js/rebot-sim.js?v=20260827-jointlimit2"></script>
-  <script src="/js/ros/rebot-ros-ui.js?v=20260827-gripperhold1"></script>
+  <script src="/js/i18n.js?v=20261010-preview-toggle"></script>
+  <script src="/js/ros/rebot-control-policy.js?v=20261007-p01"></script>
+  <script src="/js/ros/rebot-ros-client.js?v=20261009-pose"></script>
+  <script src="/js/rebot-sim.js?v=20261010-gripper135"></script>
+  <script src="/js/ros/rebot-ros-ui.js?v=20261010-gripper135"></script>
+  <script src="/js/ros/rebot-pose-preview.js?v=20261010-preview-toggle"></script>
+  <script src="/js/ros/rebot-web-tasks.js?v=20261008-clear"></script>
+  <script src="/js/rebot-llm.js?v=20261008-multiframe"></script>
 </body>
 </html>

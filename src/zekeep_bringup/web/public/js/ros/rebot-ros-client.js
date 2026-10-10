@@ -3,7 +3,7 @@
   class ReBotRosClient extends EventTarget {
     constructor(options) {
       super();
-      this.url = options && options.url ? options.url : '';
+      this.url = options && options.url ? options.url : 'ws://127.0.0.1:9090';
       this.namespace = options && options.namespace ? options.namespace : 'zekeep';
       this.socket = null;
       this.connected = false;
@@ -34,7 +34,13 @@
 
       const seq = ++this._connectSeq;
       this._emitStatus('connecting', t('client.connecting', { url: this.url }));
-      this.socket = new WebSocket(this.url);
+      try {
+        this.socket = new WebSocket(this.url);
+      } catch (error) {
+        this.connected = false;
+        this._emitStatus('error', `${t('client.wsError')}: ${error.message}`);
+        return;
+      }
       const socket = this.socket;
 
       socket.addEventListener('open', () => {
@@ -83,8 +89,12 @@
     }
 
     subscribe(topic, type, callback, options) {
-      const throttleRate = options && options.throttleRate ? options.throttleRate : 80;
-      this._subscriptions.set(topic, { topic, type, callback, throttleRate });
+      let throttleRate = options && options.throttleRate ? options.throttleRate : 80;
+      const existing = this._subscriptions.get(topic);
+      const callbacks = existing ? existing.callbacks : new Set();
+      callbacks.add(callback);
+      if (existing) throttleRate = Math.min(throttleRate, existing.throttleRate);
+      this._subscriptions.set(topic, { topic, type, callbacks, throttleRate });
       if (this.connected) this._sendSubscribe(topic, type, throttleRate);
     }
 
@@ -123,6 +133,23 @@
       return this.callService(`/${this.namespace}/disable`, 'std_srvs/srv/Trigger', {});
     }
 
+    stop() {
+      return this.callService(`/${this.namespace}/stop`, 'std_srvs/srv/Trigger', {});
+    }
+
+    cancelActions() {
+      this._pendingActions.forEach((pending, id) => {
+        this._send({ op: 'cancel_action_goal', id, action: pending.action });
+      });
+      this._rejectPendingActions(t('p01.cancelled'));
+    }
+
+    getGripperMapping() {
+      return this.callService('/ZekeepController/get_parameters', 'rcl_interfaces/srv/GetParameters', {
+        names: ['web_gripper_open_rad', 'web_gripper_close_rad', 'web_gripper_max_width_m']
+      });
+    }
+
     safeHome() {
       return this.callService(`/${this.namespace}/safe_home`, 'std_srvs/srv/Trigger', {});
     }
@@ -159,7 +186,20 @@
       });
     }
 
+    previewPoseIK(pose, jointNames, positions) {
+      return this.callService('/compute_ik', 'moveit_msgs/srv/GetPositionIK', {
+        ik_request: {
+          group_name: 'arm', ik_link_name: 'link6', avoid_collisions: true,
+          robot_state: {is_diff: true, joint_state: {name: jointNames, position: positions}},
+          pose_stamped: {header: {frame_id: 'base_link', stamp: {sec: 0, nanosec: 0}}, pose},
+          timeout: {sec: 0, nanosec: 500000000}
+        }
+      });
+    }
+
     followJointTrajectory(jointNames, points) {
+      const time = points.length && points[points.length - 1].time_from_start;
+      const durationMs = time ? (time.sec + time.nanosec * 1e-9 + 10) * 1000 : 0;
       return this.sendActionGoal(`/${this.namespace}/follow_joint_trajectory`, 'control_msgs/action/FollowJointTrajectory', {
         trajectory: {
           header: { stamp: { sec: 0, nanosec: 0 }, frame_id: '' },
@@ -169,10 +209,10 @@
         goal_tolerance: [],
         path_tolerance: [],
         goal_time_tolerance: { sec: 0, nanosec: 0 }
-      });
+      }, { timeoutMs: Math.max(this.actionTimeoutMs, durationMs) });
     }
 
-    sendActionGoal(actionName, actionType, goal) {
+    sendActionGoal(actionName, actionType, goal, options) {
       const id = this._id('action');
       return new Promise((resolve, reject) => {
         if (!this.connected) {
@@ -180,9 +220,12 @@
           return;
         }
         const timer = window.setTimeout(() => {
-          if (!this._pendingActions.delete(id)) return;
+          if (!this._pendingActions.has(id)) return;
+          this._send({ op: 'cancel_action_goal', id, action: actionName });
+          this._pendingActions.delete(id);
+          this.dispatchEvent(new CustomEvent('action-timeout', { detail: { action: actionName } }));
           reject(new Error(`ROS action timed out: ${actionName}`));
-        }, this.actionTimeoutMs);
+        }, Number(options && options.timeoutMs) || this.actionTimeoutMs);
         this._pendingActions.set(id, { resolve, reject, timer, action: actionName });
         this._send({
           op: 'send_action_goal',
@@ -293,7 +336,7 @@
       if (data.op === 'publish') {
         this._lastMessageAt.set(data.topic, Date.now());
         const sub = this._subscriptions.get(data.topic);
-        if (sub) sub.callback(data.msg, data.topic);
+        if (sub) sub.callbacks.forEach(callback => callback(data.msg, data.topic));
         return;
       }
 
@@ -330,7 +373,7 @@
         window.clearTimeout(pending.timer);
         const values = data.values || {};
         const errorCode = Number(values.error_code);
-        const failedStatus = Number(data.status) === 5 || Number(data.status) === 6;
+        const failedStatus = Number(data.status) !== 4;
         const actionFailed = data.result === false
           || values.success === false
           || (Number.isFinite(errorCode) && errorCode !== 0)

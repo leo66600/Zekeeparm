@@ -5,12 +5,12 @@ const NS = 'zekeep';
  const URL_STORAGE_KEY = 'zekeep.ros.url';
   function loadSavedUrl() { try { return localStorage.getItem(URL_STORAGE_KEY) || ''; } catch (_) { return ''; } }
   function saveUrl(url) { try { localStorage.setItem(URL_STORAGE_KEY, url); } catch (_) {} }
- const OPEN_GRIPPER_M = 0.07;
+ const OPEN_GRIPPER_M = 0.07 * 1.35 / 1.45;
   const CLOSE_GRIPPER_M = 0;
-  const GRIPPER_MOTOR_OPEN_RAD = 1.30;
+  let gripperMapping = null;
   const GRIPPER_BASE_GAP_M = 0.014;
   const GRIPPER_VISUAL_TRAVEL_M = 0.057;
-  const GRIPPER_EFFECTIVE_GAP_M = 0.071;
+  const GRIPPER_EFFECTIVE_GAP_M = OPEN_GRIPPER_M;
   const GRASP_SQUEEZE_M = 0.004;
   const MIN_OBJECT_GRASP_M = 0.018;
   const VISION_TRANSIT_Z_M = 0.32;
@@ -39,6 +39,7 @@ const NS = 'zekeep';
   const CAMERA_IMAGE_TOPICS = [
     REQUIRED_TOPICS.cameraImage,
     '/camera/color/image',
+    '/zekeep/web/camera/image_raw',
     '/gemini305g/color/image_raw',
     `/${NS}/mujoco/overhead_rgb/image_raw`
   ];
@@ -105,7 +106,7 @@ const NS = 'zekeep';
 
   if (els.url && !els.url.value) {
     const saved = loadSavedUrl();
-    if (saved) els.url.value = saved;
+    els.url.value = saved || 'ws://127.0.0.1:9090';
   }
   const client = new window.ReBotRosClient({ namespace: NS, url: els.url ? els.url.value : '' });
  window.reBotRos = client;
@@ -125,8 +126,6 @@ const NS = 'zekeep';
   let listedServices = new Set();
   let listedActionServers = new Set();
   let simulationDriverDetected = false;
-  let lowLevelPlayback = null;
-  let lastTargetPoseSent = 0;
   let latestVisionPayload = null;
   let latestVisionAt = 0;
   let selectedVisionTarget = null;
@@ -145,11 +144,84 @@ const NS = 'zekeep';
   let latestControlLoopActive = false;
   let trajectoryActionBusy = false;
   let gripperCommandBusy = false;
+  let motionEpoch = 0;
+  let stopping = false;
+  let stopFailed = false;
+  let teachingHardwareBusy = false;
+  const executionStatus = document.getElementById('ros-execution-status');
+  const feedbackSource = document.getElementById('ros-feedback-source');
+  const mappingStatus = document.getElementById('ros-gripper-mapping');
+
+  function setExecution(key, params) {
+    if (executionStatus) executionStatus.textContent = t(key, params);
+  }
+
+  function invalidateMotion() {
+    motionEpoch += 1;
+    window.reBotPosePreview?.clear();
+    if (window.reBotAI) window.reBotAI.cancel().catch((error) => writeLog(error.message, "error"));
+    if (window.reBotSim) window.reBotSim.stopLocalMotion();
+  }
+
+  async function stopRobot() {
+    invalidateMotion();
+    if (stopping) return;
+    if (!client.connected) {
+      setExecution('p01.stopUnconfirmed');
+      return;
+    }
+    stopping = true;
+    client.cancelActions();
+    setExecution('p01.stopping');
+    try {
+      const [taskResult, result, aiResult] = await Promise.all([
+        window.reBotTasks ? window.reBotTasks.cancel() : Promise.resolve({success: true}),
+        client.stop(),
+        window.reBotAI ? window.reBotAI.cancel() : Promise.resolve({success: true})
+      ]);
+      if (!aiResult || aiResult.success !== true) throw new Error(t('p01.stopUnconfirmed'));
+      if (!taskResult || taskResult.success !== true) throw new Error(taskResult && taskResult.message || t('p01.stopUnconfirmed'));
+      if (!result || result.success !== true) throw new Error(result && result.message || t('p01.stopUnconfirmed'));
+      stopFailed = false;
+      setExecution('p01.stopped');
+      writeLog(result.message || t('p01.stopped'), 'ok');
+    } catch (error) {
+      stopFailed = true;
+      setExecution('p01.stopUnconfirmed');
+      writeLog(error.message, 'error');
+    } finally {
+      stopping = false;
+    }
+  }
+
+  async function loadGripperMapping() {
+    const epoch = motionEpoch;
+    try {
+      const result = await client.getGripperMapping();
+      if (epoch !== motionEpoch || !client.connected) return;
+      const values = result.values || [];
+      const [open, close, width] = values.map((value) => value.type === 3 ? value.double_value : NaN);
+      if (values.length !== 3 || ![open, close, width].every(Number.isFinite)
+          || open <= close || width <= 0 || width > OPEN_GRIPPER_M) throw new Error(t('p01.mappingUnavailable'));
+      gripperMapping = { open, close, width };
+      if (mappingStatus) mappingStatus.textContent = t('p01.mapping', { open, close, mm: width * 1000 });
+    } catch (error) {
+      if (epoch !== motionEpoch) return;
+      gripperMapping = null;
+      if (mappingStatus) mappingStatus.textContent = t('p01.mappingUnavailable');
+      writeLog(error.message, 'warn');
+    }
+  }
+
+  document.getElementById('ros-stop')?.addEventListener('click', stopRobot);
+  document.getElementById('ros-mapping-query')?.addEventListener('click', loadGripperMapping);
+  client.addEventListener('action-feedback', () => setExecution('p01.running'));
+  client.addEventListener('action-timeout', stopRobot);
 
   client.subscribe(REQUIRED_TOPICS.jointStates, 'sensor_msgs/msg/JointState', handleJointStates, { throttleRate: 80 });
   client.subscribe(REQUIRED_TOPICS.gripper, 'zekeep_msgs/msg/JointMotorState', handleGripperState, { throttleRate: 80 });
   client.subscribe(REQUIRED_TOPICS.armStatus, 'zekeep_msgs/msg/ArmStatus', handleArmStatus, { throttleRate: 200 });
-  CAMERA_IMAGE_TOPICS.forEach((topic) => {
+  CAMERA_IMAGE_TOPICS.filter((topic) => els.cameraCanvas || topic.includes('/mujoco/')).forEach((topic) => {
     client.subscribe(topic, 'sensor_msgs/msg/Image', handleCameraImage, { throttleRate: 250 });
   });
   client.subscribe(REQUIRED_TOPICS.objectStates, 'std_msgs/msg/String', handleMujocoObjectStates, { throttleRate: 33 });
@@ -165,14 +237,23 @@ const NS = 'zekeep';
     }
     updateDiagnostics();
    if (detail.state === 'closed' || detail.state === 'error') {
+      invalidateMotion();
+      latestJointPositions = null;
+      latestJointStateAt = 0;
+      latestArmEnabled = false;
+      latestControlLoopActive = false;
+      gripperMapping = null;
+      els.control.checked = false;
+      setExecution('p01.disconnected');
       listedTopics = new Set();
       listedServices = new Set();
       listedActionServers = new Set();
       simulationDriverDetected = false;
-      cancelLowLevelPlayback();
       updateGravityStatus(false, t('msg.rosNotConnected'), 'connection');
+      if (detail.state === 'error' && client.connected) stopRobot();
    }
     if (detail.state === 'open') {
+      loadGripperMapping();
       window.setTimeout(() => {
         runDiagnostics();
       }, 250);
@@ -180,7 +261,8 @@ const NS = 'zekeep';
   });
 
   els.connect.addEventListener('click', () => {
-   const nextUrl = els.url.value.trim();
+   const nextUrl = els.url.value.trim() || 'ws://127.0.0.1:9090';
+   els.url.value = nextUrl;
    if (!canConnectWebSocketUrl(nextUrl)) return;
     saveUrl(nextUrl);
    client.autoReconnect = true;
@@ -198,14 +280,15 @@ const NS = 'zekeep';
     { allowDisabled: true }
   ));
   els.disable.addEventListener('click', () => {
-    cancelLowLevelPlayback();
+    invalidateMotion();
+    client.cancelActions();
+    if (window.reBotTasks) window.reBotTasks.cancel().catch((error) => writeLog(error.message, 'error'));
     guardedCall(() => client.disable(), t('msg.reqDisable'), true);
   });
   els.safeHome.addEventListener('click', () => {
     guardedCall(() => client.safeHome(), t('msg.reqSafeHome'), false, { allowLowLevel: true });
   });
   els.gravityStart.addEventListener('click', () => {
-    cancelLowLevelPlayback();
     guardedOptionalService(
       REQUIRED_SERVICES.gravityStart,
       () => client.startGravityCompensation(),
@@ -213,7 +296,6 @@ const NS = 'zekeep';
     );
   });
   els.gravityStop.addEventListener('click', () => {
-    cancelLowLevelPlayback();
     guardedOptionalService(
       REQUIRED_SERVICES.gravityStop,
       () => client.stopGravityCompensation(),
@@ -226,6 +308,7 @@ const NS = 'zekeep';
  els.closeGripper.addEventListener('click', () => sendGripper(CLOSE_GRIPPER_M, { requireControl: true }));
  els.clearLog.addEventListener('click', () => { els.log.innerHTML = ''; });
   els.checkIk.addEventListener('click', checkIk);
+  document.getElementById('tcp-execute')?.addEventListener('click', checkIk);
   document.getElementById('ros-help-top')?.addEventListener('click', () => document.getElementById('ros-help-dialog')?.showModal());
   document.getElementById('ros-help-close')?.addEventListener('click', () => document.getElementById('ros-help-dialog')?.close());
   const sidebar = document.querySelector('.control-panel');
@@ -249,13 +332,18 @@ const NS = 'zekeep';
   if (els.materialPick) els.materialPick.addEventListener('click', runMaterialPick);
   if (els.stopPath) {
     els.stopPath.addEventListener('click', () => {
-      cancelLowLevelPlayback();
-      writeLog(t('log.stopPlayback'), 'warn');
+      stopRobot();
     });
   }
 
   els.control.addEventListener('change', () => {
+    if (els.control.checked && window.reBotSim && window.reBotSim.isRecording()) {
+      els.control.checked = false;
+      setMessage(t('p01.teachHint'));
+      return;
+    }
     if (els.control.checked) writeLog(t('log.controlLockOpen'), 'info');
+    else stopRobot();
   });
 
   waitForSimApi((sim) => sim.onCommand((command) => forwardSimCommand(command)));
@@ -270,12 +358,12 @@ const NS = 'zekeep';
     const next = {};
     msg.name.forEach((name, index) => {
       const simName = normalizeJointName(name);
-      if (!simName || typeof msg.position[index] !== 'number') return;
+      if (!simName || !Number.isFinite(msg.position[index])) return;
       next[simName] = msg.position[index];
     });
 
-    if (Object.keys(next).length) {
-      latestJointPositions = { ...(latestJointPositions || {}), ...next };
+    if (JOINT_NAMES.every((name) => Number.isFinite(next[name]))) {
+      latestJointPositions = next;
       latestJointStateAt = performance.now();
     }
     updateFeedbackError(next);
@@ -326,12 +414,13 @@ const NS = 'zekeep';
   }
 
   function handleGripperState(msg) {
+    if (!gripperMapping || !Number.isFinite(msg.position)) return;
     if (typeof msg.position === 'number') {
       latestGripperPosition = gripperMotorPositionToWidth(msg.position);
       latestGripperAt = performance.now();
     }
     if (typeof msg.velocity === 'number') {
-      latestGripperVelocity = msg.velocity * OPEN_GRIPPER_M / GRIPPER_MOTOR_OPEN_RAD;
+      latestGripperVelocity = msg.velocity * gripperMapping.width / (gripperMapping.open - gripperMapping.close);
     }
     if (window.reBotSim && typeof msg.position === 'number') {
       const width = gripperMotorPositionToWidth(msg.position);
@@ -377,12 +466,17 @@ const NS = 'zekeep';
   }
 
   function forwardSimCommand(command) {
-    if (command && command.type === 'teaching-replay-complete') {
+    if (command && command.type === 'teaching-replay') {
       stageTeachingTrajectory(command);
       return;
     }
+    if (window.reBotSim && window.reBotSim.isRecording()) return;
     if (command && command.type === 'tcp-target') {
-      forwardTcpTarget(command);
+      if (command.target_ros) {
+        els.poseX.value = command.target_ros.x.toFixed(4);
+        els.poseY.value = command.target_ros.y.toFixed(4);
+        els.poseZ.value = command.target_ros.z.toFixed(4);
+      }
       return;
     }
     if (command && command.type === 'joint-batch') {
@@ -390,6 +484,8 @@ const NS = 'zekeep';
       return;
     }
     if (!command || command.type !== 'joint') return;
+    if (['drag', 'drag-settle', 'solver', 'sim', 'preset-preview', 'teach-replay'].includes(command.source)) return;
+    if (teachingHardwareBusy) return;
     simTargetAngles.set(command.name, command.value);
     mirrorHoldUntil.set(command.name, performance.now() + MIRROR_HOLD_MS);
 
@@ -437,18 +533,9 @@ const NS = 'zekeep';
     ], `关节 ${name}`);
   }
 
-  function forwardTcpTarget(command) {
-    if (!client.connected || !command || !command.target_ros) return;
-    const now = performance.now();
-    if (now - lastTargetPoseSent < COMMAND_INTERVAL_MS) return;
-    lastTargetPoseSent = now;
-    client.publishTargetPose({
-      position: command.target_ros,
-      orientation: { x: 0, y: 0, z: 0, w: 1 }
-    });
-  }
-
   async function forwardJointBatch(command) {
+    const epoch = motionEpoch;
+    if (teachingHardwareBusy) return;
     const joints = command && command.joints && typeof command.joints === 'object' ? command.joints : {};
     const names = [...JOINT_NAMES, 'gripper'].filter((name) => typeof joints[name] === 'number' && Number.isFinite(joints[name]));
     if (!names.length) return;
@@ -476,7 +563,8 @@ const NS = 'zekeep';
         makeTrajectoryPoint(current, 0.05),
         makeTrajectoryPoint(target, duration)
       ];
-      await sendTrajectory(points, label);
+      const result = await sendTrajectory(points, label);
+      if (!result || result.success === false || epoch !== motionEpoch) return;
     }
     if (names.includes('gripper') && controlAllowed(false)) {
       await publishGripper(joints.gripper);
@@ -485,23 +573,32 @@ const NS = 'zekeep';
  }
 
   async function checkIk() {
-    const pose = readPose();
-    const duration = getPoseDuration();
+    if (teachingHardwareBusy) return;
+    if (![els.poseX, els.poseY, els.poseZ].every((el) => el.value.trim() !== '' && Number.isFinite(Number(el.value)))) {
+      setMessage(t('p01.invalidPose'));
+      return;
+    }
+    const previewTarget = window.reBotPosePreview?.getTarget();
+    if (window.reBotPosePreview && !previewTarget) {
+      setMessage(t('p01.invalidPose'));
+      return;
+    }
+    const pose = previewTarget ? previewTarget.pose : readPose();
+    const duration = previewTarget ? previewTarget.duration : getPoseDuration();
     const hardwareControl = client.connected && els.control && els.control.checked;
     if (!hardwareControl) {
       if (!window.reBotSim || typeof window.reBotSim.moveToTcp !== 'function') {
         setMessage('仿真模型未加载');
         return;
       }
+      window.reBotPosePreview?.clear();
       window.reBotSim.moveToTcp(pose.position, '仿真 Pose');
       setMessage('仿真 Pose 运动已执行');
       writeLog(`仿真 Pose: X=${pose.position.x.toFixed(3)} Y=${pose.position.y.toFixed(3)} Z=${pose.position.z.toFixed(3)}`, 'ok');
       return;
     }
     if (!controlAllowed(true)) return;
-    if (window.reBotSim && typeof window.reBotSim.moveToTcp === 'function') {
-      window.reBotSim.moveToTcp(pose.position, '实机 IK 运动');
-    }
+    window.reBotPosePreview?.clear();
     const result = await moveToPoseViaIkTrajectory(
       pose,
       duration,
@@ -576,108 +673,60 @@ const NS = 'zekeep';
    }
   }
 
-  function buildTrajectoryPoints(waypoints, totalDuration) {
-    const firstT = waypoints[0].t || 0;
-    const lastT = waypoints[waypoints.length - 1].t || firstT + 1;
-    const span = Math.max(lastT - firstT, 1);
-    const points = [makeTrajectoryPoint(getCurrentRosPositions(), 0.05)];
-    waypoints.forEach((point, index) => {
-      const ratio = waypoints.length === 1 ? 1 : Math.max(0, (point.t - firstT) / span);
-      const seconds = Math.max(0.2, index === waypoints.length - 1 ? totalDuration : ratio * totalDuration);
-      points.push(makeTrajectoryPoint(JOINT_NAMES.map((name) => Number(point.joints[name] || 0)), seconds));
-    });
-    return points;
-  }
-
   async function sendTrajectory(points, optimisticMessage) {
-    if (!points.length) return;
-    if (!controlAllowed(true)) {
-      return;
+    const epoch = motionEpoch;
+    if (!points.length || !controlAllowed(true)) return { success: false };
+    if (trajectoryActionBusy) {
+      setMessage(t('p01.busy'));
+      return { success: false, message: t('p01.busy') };
     }
-    const transport = controlPolicy.selectTrajectoryTransport({
-      actionAvailable: hasActionServer(`/${NS}/follow_joint_trajectory`),
-      simulationDriverDetected
-    });
-    if (transport === 'action') {
-      if (trajectoryActionBusy) {
-        const message = '已有机械臂轨迹正在执行，请等待完成后再发送';
-        setMessage(message);
-        writeLog(message, 'warn');
-        return;
+    trajectoryActionBusy = true;
+    setExecution('p01.running');
+    try {
+      const result = await guardedCall(() => client.followJointTrajectory(JOINT_NAMES, points), optimisticMessage);
+      if (epoch !== motionEpoch) return { success: false, message: t('p01.cancelled') };
+      const success = Boolean(result && result.completed && !serviceResultFailed(result));
+      setExecution(success ? 'p01.completed' : 'p01.failed');
+      // An action timeout or transport loss does not prove the robot stopped.
+      if (!success && client.connected) await stopRobot();
+      return { ...result, success };
+    } finally {
+      trajectoryActionBusy = false;
+    }
+  }
+
+  async function stageTeachingTrajectory(command) {
+    if (teachingHardwareBusy || !controlAllowed(true)) return;
+    const epoch = motionEpoch;
+    const waypoints = command.waypoints || [];
+    if (!waypoints.length) return;
+    teachingHardwareBusy = true;
+    window.reBotSim.setTeachingStatus(t('p01.hardwareReplay'));
+    try {
+      // Revalidate even browser-recorded trajectories at the execution boundary.
+      controlPolicy.validateTeachingPayload(window.reBotSim.getTeachingPayload(), window.reBotSim.getJointDefs());
+      if (!gripperMapping) throw new Error(t('p01.mappingUnavailable'));
+      const span = Math.max(1, waypoints[waypoints.length - 1].t - waypoints[0].t);
+      for (let index = 0; index < waypoints.length; index += 1) {
+        if (epoch !== motionEpoch || !controlAllowed(false)) throw new Error(t('p01.cancelled'));
+        const current = getCurrentRosPositions();
+        const target = JOINT_NAMES.map((name) => waypoints[index].joints[name]);
+        const requested = index ? (waypoints[index].t - waypoints[index - 1].t) / span * getTrajectoryDuration() : 1;
+        const duration = controlPolicy.computeJointTrajectoryDuration(current, target, getVlim(), requested);
+        const result = await sendTrajectory([makeTrajectoryPoint(current, 0.05), makeTrajectoryPoint(target, duration)], t('p01.hardwareReplay'));
+        if (!result.success || epoch !== motionEpoch) throw new Error(result.message || t('p01.failed'));
+        // Each endpoint's gripper command completes before advancing to the next arm segment.
+        const grip = await publishGripper(waypoints[index].joints.gripper);
+        if (!grip || grip.success !== true || epoch !== motionEpoch) throw new Error(t('p01.failed'));
       }
-      trajectoryActionBusy = true;
-      try {
-        await guardedCall(() => client.followJointTrajectory(JOINT_NAMES, points), optimisticMessage);
-      } finally {
-        trajectoryActionBusy = false;
-      }
-      return;
+      window.reBotSim.setTeachingStatus(t('p01.completed'));
+    } catch (error) {
+      window.reBotSim.setTeachingStatus(error.message);
+      writeLog(error.message, 'error');
+      if (epoch === motionEpoch && client.connected) await stopRobot();
+    } finally {
+      teachingHardwareBusy = false;
     }
-   if (transport === 'low-level') {
-      setMessage(t('msg.simLowLevelSuffix', {label: optimisticMessage}));
-      writeLog(t('log.lowLevelSuffix', {label: optimisticMessage}), 'info');
-     await replayTrajectoryLowLevel(points);
-      return;
-    }
-    const message = '未发现 FollowJointTrajectory，已拒绝实机轨迹';
-    setMessage(message);
-    writeLog(message, 'error');
-  }
-
-  function stageTeachingTrajectory(command) {
-    const waypoints = command && Array.isArray(command.waypoints)
-      ? command.waypoints.filter((point) => point && point.joints)
-      : [];
-    if (!client.connected || !waypoints.length) return;
-    const label = command.label || '示教轨迹';
-    const points = buildTrajectoryPoints(waypoints, getTrajectoryDuration());
-    sendTrajectory(points, label);
-  }
-
-  async function replayTrajectoryLowLevel(points) {
-    cancelLowLevelPlayback();
-    const playback = { cancelled: false };
-    lowLevelPlayback = playback;
-    const started = performance.now();
-    writeLog(t('log.lowLevelStart', {n: points.length}), 'ok');
-    for (const point of points) {
-      if (playback.cancelled || !controlAllowed(false)) break;
-      const targetMs = rosTimeToSeconds(point.time_from_start) * 1000;
-      const waitMs = Math.max(0, targetMs - (performance.now() - started));
-      if (waitMs > 0) await sleep(waitMs);
-      if (playback.cancelled || !controlAllowed(false)) break;
-      JOINT_NAMES.forEach((name, index) => {
-        const pos = Number(point.positions[index]);
-        if (Number.isFinite(pos)) {
-          simTargetAngles.set(name, pos);
-          const sent = client.publishJointCommand(name, pos, { vlim: getVlim() });
-          if (!sent) writeLog(t('log.commandPublishFailed', {name}), 'error');
-	        }
-	      });
-      syncSimArmFromTrajectoryPoint(point);
-    }
-    if (lowLevelPlayback === playback) lowLevelPlayback = null;
-    writeLog(playback.cancelled ? t('log.lowLevelCancelled') : t('log.lowLevelDone'), playback.cancelled ? 'warn' : 'ok');
-  }
-
-  function syncSimArmFromTrajectoryPoint(point) {
-    if (!window.reBotSim || typeof window.reBotSim.setAngles !== 'function') return;
-    const angles = {};
-    JOINT_NAMES.forEach((name, index) => {
-      const pos = Number(point.positions[index]);
-      if (Number.isFinite(pos)) angles[name] = pos;
-    });
-    if (Object.keys(angles).length) {
-      window.reBotSim.setAngles(angles, { source: 'trajectory-playback' });
-    }
-  }
-
-  function cancelLowLevelPlayback() {
-    if (lowLevelPlayback) lowLevelPlayback.cancelled = true;
-  }
-
-  function shouldUseLowLevelTrajectory() {
-    return controlPolicy.shouldUseLowLevelTrajectory({ simulationDriverDetected });
   }
 
   function markSimulationDriverDetected(reason) {
@@ -705,11 +754,6 @@ const NS = 'zekeep';
     return JOINT_NAMES.map((name) => Number(source[name] || 0));
   }
 
-  function getTeachWaypoints() {
-    if (!window.reBotSim || typeof window.reBotSim.getTeachingWaypoints !== 'function') return [];
-    return window.reBotSim.getTeachingWaypoints().filter((point) => point && point.joints);
-  }
-
   function readPose() {
     const tcpPose = window.reBotSim && typeof window.reBotSim.getTcpPose === 'function'
       ? window.reBotSim.getTcpPose()
@@ -730,12 +774,22 @@ const NS = 'zekeep';
   }
 
   function controlAllowed(interactive, options) {
+    if ((window.reBotTaskState && window.reBotTaskState.owner) || window.reBotAIActive || window.reBotPhysicsActive) {
+      if (interactive) setMessage(t('p23.taskOwnsControl'));
+      return false;
+    }
     if (!client.connected) {
       if (interactive) setStatus('closed', t('msg.rosNotConnected'));
       return false;
     }
     if (!els.control.checked) {
       if (interactive) setMessage(t('msg.controlLockClosed'));
+      return false;
+    }
+    if (!(options && options.allowDisabled) && (stopping || stopFailed || !latestJointStateAt
+        || performance.now() - latestJointStateAt > 2500
+        || !latestJointPositions || !JOINT_NAMES.every((name) => Number.isFinite(latestJointPositions[name])))) {
+      if (interactive) setMessage(t('msg.feedbackStale'));
       return false;
     }
     const allowLowLevel = Boolean(options && options.allowLowLevel);
@@ -772,7 +826,8 @@ const NS = 'zekeep';
 
   async function disconnectRos() {
     if (safeDisconnectBusy) return;
-    cancelLowLevelPlayback();
+    invalidateMotion();
+    client.cancelActions();
 
     if (!els.safeDisconnect || !els.safeDisconnect.checked || !client.connected) {
       client.disconnect();
@@ -861,8 +916,13 @@ const NS = 'zekeep';
     const stale = client.connected && age > 2.5;
     if (els.control) {
       els.control.disabled = !client.connected || stale;
-      if (stale) els.control.checked = false;
+      if (stale && els.control.checked) {
+        els.control.checked = false;
+        stopRobot();
+      }
     }
+    if (feedbackSource) feedbackSource.textContent = client.connected
+      ? t('p01.feedback', { age: Number.isFinite(age) ? age.toFixed(1) : '--' }) : t('p01.localPreview');
     if (stale) setMessage(t('msg.feedbackStale'));
   }
 
@@ -905,15 +965,16 @@ const NS = 'zekeep';
       activeCameraTopic = topic;
       if (els.cameraTopic) els.cameraTopic.textContent = topic;
     }
-    markSimulationDriverDetected(t('reason.mujocoCamera'));
+    if (topic && topic.includes('/mujoco/')) markSimulationDriverDetected(t('reason.mujocoCamera'));
     if (!els.cameraCanvas || !msg) return;
     const width = Number(msg.width) || 0;
     const height = Number(msg.height) || 0;
-    if (width <= 0 || height <= 0) {
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width <= 0 || height <= 0) {
       setCameraStatus(t('st.cameraError'), 'error');
       return;
     }
 
+    if (width > 4096 || height > 4096) { setCameraStatus(t('st.cameraDataError'), 'error'); return; }
     const bytes = rosImageBytes(msg.data);
     if (!bytes) {
       setCameraStatus(t('st.cameraDataError'), 'error');
@@ -928,12 +989,15 @@ const NS = 'zekeep';
       return;
     }
 
+    const step = Number(msg.step) || width * channels;
+    if (!Number.isSafeInteger(step) || step < width * channels || bytes.length < step * height) {
+      setCameraStatus(t('st.cameraDataError'), 'error'); return;
+    }
     if (els.cameraCanvas.width !== width) els.cameraCanvas.width = width;
     if (els.cameraCanvas.height !== height) els.cameraCanvas.height = height;
     const ctx = els.cameraCanvas.getContext('2d');
     const frame = ctx.createImageData(width, height);
     const dst = frame.data;
-    const step = Number(msg.step) || width * channels;
     const bgr = encoding === 'bgr8' || encoding === 'bgra8';
 
     for (let y = 0; y < height; y += 1) {
@@ -1529,33 +1593,23 @@ const NS = 'zekeep';
   }
 
  async function moveToPoseViaIkTrajectory(pose, duration, optimisticMessage) {
-    setMessage(t('msg.ikSolving', {label: optimisticMessage}));
-    writeLog(t('msg.ikSolving', {label: optimisticMessage}), 'info');
-   const ik = await guardedCall(
-     () => client.solveMoveToPoseIK(pose),
-      t('msg.ikSolving', {label: optimisticMessage}),
-     true,
-      { keepConnectionStatus: true }
+    const epoch = motionEpoch;
+    if (!controlAllowed(true) || teachingHardwareBusy) return { success: false };
+    const ik = await guardedCall(
+      () => client.solveMoveToPoseIK(pose), t('msg.ikSolving', {label: optimisticMessage}),
+      false, { keepConnectionStatus: true }
     );
-    if (!ik || !Array.isArray(ik.q_solution) || !ik.q_solution.length) {
-      setMessage(t('msg.ikNoSolution'));
-      return { success: false, localPlayback: true };
+    if (epoch !== motionEpoch) return { success: false, message: t('p01.cancelled') };
+    const defs = window.reBotSim.getJointDefs().filter((def) => def.name !== 'gripper');
+    if (epoch !== motionEpoch || !ik || ik.success !== true || !Array.isArray(ik.q_solution)
+        || ik.q_solution.length !== JOINT_NAMES.length
+        || !ik.q_solution.every((value, index) => Number.isFinite(value) && value >= defs[index].min && value <= defs[index].max)) {
+      const message = ik && ik.message || t('msg.ikNoSolution');
+      setMessage(message);
+      setExecution('p01.failed');
+      return { success: false, message };
     }
-    const ikBestEffort = ik.success === false;
-   if (ikBestEffort) {
-     const message = ik.message || t('msg.ikApproxFallback');
-      setMessage(t('msg.ikApprox', {message}));
-      writeLog(t('msg.ikApprox', {message}), 'warn');
-   }
-
-    const start = getCurrentRosPositions();
-    const goal = JOINT_NAMES.map((name, index) => {
-      const value = Number(ik.q_solution[index]);
-      return Number.isFinite(value) ? value : start[index];
-    });
-   const points = buildSmoothJointMovePoints(start, goal, duration);
-    await sendTrajectory(points, t('msg.ikLowLevelSuffix', {label: optimisticMessage}));
-   return { success: true, localPlayback: true, bestEffort: ikBestEffort };
+    return sendTrajectory(buildSmoothJointMovePoints(getCurrentRosPositions(), ik.q_solution, duration), optimisticMessage);
   }
 
   function buildSmoothJointMovePoints(start, goal, duration) {
@@ -1776,7 +1830,7 @@ const NS = 'zekeep';
     if (!count) return;
    const rms = Math.sqrt(sumSq / count);
     els.feedbackError.textContent = t('fb.errorMax', {max: (maxError * 180 / Math.PI).toFixed(2), joint: worstJoint || '', rms: (rms * 180 / Math.PI).toFixed(2)});
-   els.feedbackError.style.color = maxError < 0.035 ? '#d7fff4' : (maxError < 0.12 ? '#ffe0b0' : '#ffd1c9');
+   els.feedbackError.style.color = maxError < 0.035 ? 'var(--green)' : (maxError < 0.12 ? 'var(--amber)' : 'var(--red)');
   }
 
   function updateGravityStatus(active, detail, source) {
@@ -1798,7 +1852,7 @@ const NS = 'zekeep';
     if (detail && detail !== 'GRAVITY_COMP') {
       els.gravityStatus.textContent += ` / ${detail}`;
     }
-    els.gravityStatus.style.color = nextActive ? '#d7fff4' : '#ffe0b0';
+    els.gravityStatus.style.color = nextActive ? 'var(--green)' : 'var(--amber)';
   }
 
   function maybeSendGripper(position) {
@@ -1815,6 +1869,7 @@ const NS = 'zekeep';
   }
 
   function sendGripper(position, options) {
+    if (teachingHardwareBusy) return;
     syncSimGripper(position);
     if (
       options &&
@@ -1840,7 +1895,7 @@ const NS = 'zekeep';
       ...(options || {})
     };
     const serviceResult = await publishGripper(position);
-    if (!serviceResult) {
+    if (!serviceResult || serviceResult.success === false) {
       throw new Error(`${label}夹爪命令未执行`);
     }
     setMessage(label);
@@ -1942,17 +1997,25 @@ const NS = 'zekeep';
   }
 
   function gripperWidthToMotorPosition(width) {
-    return clamp(Number(width), CLOSE_GRIPPER_M, OPEN_GRIPPER_M)
-      / OPEN_GRIPPER_M * GRIPPER_MOTOR_OPEN_RAD;
+    if (!gripperMapping) return NaN;
+    return gripperMapping.close + clamp(width, 0, gripperMapping.width)
+      / gripperMapping.width * (gripperMapping.open - gripperMapping.close);
   }
 
   function gripperMotorPositionToWidth(position) {
-    return clamp(Number(position), 0, GRIPPER_MOTOR_OPEN_RAD)
-      / GRIPPER_MOTOR_OPEN_RAD * OPEN_GRIPPER_M;
+    if (!gripperMapping || !Number.isFinite(position)) return NaN;
+    return clamp((position - gripperMapping.close) / (gripperMapping.open - gripperMapping.close), 0, 1)
+      * gripperMapping.width;
   }
 
   async function publishGripper(position) {
     syncSimGripper(position);
+    if (!controlAllowed(true, { allowLowLevel: true }) || !gripperMapping || !Number.isFinite(position)
+        || position < 0 || position > gripperMapping.width) {
+      setMessage(t('p01.mappingUnavailable'));
+      return { success: false };
+    }
+    const epoch = motionEpoch;
     if (gripperCommandBusy) {
       const message = '已有夹爪命令正在执行，请等待完成';
       setMessage(message);
@@ -1966,13 +2029,14 @@ const NS = 'zekeep';
       const result = await guardedCall(
         () => client.setGripper(gripperWidthToMotorPosition(position), 0),
         t('msg.gripperCmdPublished', {mm: Math.round(position * 1000), fb: ''}),
-        true,
+        false,
         { keepConnectionStatus: true }
       );
+      if (epoch !== motionEpoch) return { success: false };
       const feedback = typeof latestGripperPosition === 'number'
         ? t('fb.gripperFb', {mm: Math.round(latestGripperPosition * 1000)})
         : '';
-      writeLog(t('log.gripperCmd', {mm: Math.round(position * 1000), topic: '/' + NS + '/gripper/set'}), result && result.success === false ? 'warn' : 'ok');
+      writeLog(t('log.gripperCmd', {mm: Math.round(position * 1000), topic: '/' + NS + '/gripper/set'}), result && result.success === true ? 'ok' : 'error');
       if (feedback) setMessage(t('msg.gripperCmdPublished', {mm: Math.round(position * 1000), fb: feedback}));
       return result;
     } finally {
@@ -1991,20 +2055,16 @@ const NS = 'zekeep';
   }
 
   function getVlim() {
-    return clamp(Number(els.vlim.value) || 0.2, 0.05, 1.5);
+    return clamp(Number(els.vlim.value) || 0.3, 0.05, 1.5);
   }
 
   function getTrajectoryDuration() {
-    return clamp(Number(els.trajectoryDuration.value) || 6, 1, 30);
+    return clamp(Number(els.trajectoryDuration.value) || 2, 1, 30);
   }
 
   function secondsToRosTime(seconds) {
-    const sec = Math.floor(seconds);
-    return { sec, nanosec: Math.round((seconds - sec) * 1e9) };
-  }
-
-  function rosTimeToSeconds(time) {
-    return Number(time && time.sec ? time.sec : 0) + Number(time && time.nanosec ? time.nanosec : 0) * 1e-9;
+    const ns = Math.round(seconds * 1e9);
+    return { sec: Math.floor(ns / 1e9), nanosec: ns % 1e9 };
   }
 
   function clamp(value, min, max) {
@@ -2075,7 +2135,7 @@ const NS = 'zekeep';
       // Re-render gravity compensation status
       if (els.gravityStatus) {
         els.gravityStatus.textContent = gravityCompensationActive ? t('st.running') : t('st.notRunning');
-        els.gravityStatus.style.color = gravityCompensationActive ? '#d7fff4' : '#ffe0b0';
+        els.gravityStatus.style.color = gravityCompensationActive ? 'var(--green)' : 'var(--amber)';
       }
       // Re-render vision pick/place demo buttons
       if (els.visionPickDemo) {

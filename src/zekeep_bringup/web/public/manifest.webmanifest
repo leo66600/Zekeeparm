@@ -1,15 +1,18 @@
 {
-  "name": "Six-axis reBot Arm Control Panel",
-  "short_name": "reBot Arm",
-  "description": "Mobile-friendly ROS2 control panel and simulator for the Six-axis reBot Arm.",
+  "name": "ZK-EM600擎栈机械臂网页仿真控制器",
+  "short_name": "ZK-EM600",
+  "description": "ZK-EM600 擎栈机械臂网页仿真与 ROS2 控制台。",
   "id": "/",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#111211",
-  "theme_color": "#111211",
-  "categories": ["productivity", "utilities"],
+  "background_color": "#f5f4f0",
+  "theme_color": "#f5f4f0",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/favicon.png",

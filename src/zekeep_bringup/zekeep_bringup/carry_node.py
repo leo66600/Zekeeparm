@@ -138,9 +138,9 @@ class CarryNode(Node):
             "tool_rpy.roll": 0.0,
             "tool_rpy.pitch": 0.0,
             "tool_rpy.yaw": 0.0,
-            "gripper.open_position": 0.035,
+            "gripper.open_position": 0.03258620689655173,
             "gripper.close_position": 0.0,
-            "gripper.hardware_open_position": 1.15,
+            "gripper.hardware_open_position": 1.35,
             "gripper.closing_torque": 1.0,
             "gripper.hold_torque": 0.30,
         }

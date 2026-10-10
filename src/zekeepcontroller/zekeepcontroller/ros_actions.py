@@ -26,16 +26,17 @@ _TRAJECTORY_COMMAND_PERIOD_S = 0.005
 class ArmActions:
     """Register ROS actions for arm trajectories and gripper operations."""
 
-    def __init__(self, node: Node, hardware: Any, namespace: str) -> None:
+    def __init__(self, node: Node, hardware: Any, namespace: str, *, internal=False) -> None:
         self._node = node
         self._hardware = hardware
         self._namespace = namespace
+        self._internal = internal
         self._gripper_execution_lock = threading.Lock()
         self._move_to_pose_server = ActionServer(
             node,
             MoveToPose,
             f"/{namespace}/move_to_pose",
-            execute_callback=self.execute_move_to_pose,
+            execute_callback=node.web_task_gate.action(self.execute_move_to_pose, MoveToPose.Result, internal=internal),
             goal_callback=self.arm_goal_callback,
             cancel_callback=self.cancel_callback,
             callback_group=node.reentrant_group,
@@ -44,7 +45,7 @@ class ArmActions:
             node,
             FollowJointTrajectory,
             f"/{namespace}/follow_joint_trajectory",
-            execute_callback=self.execute_follow_joint_trajectory,
+            execute_callback=node.web_task_gate.action(self.execute_follow_joint_trajectory, FollowJointTrajectory.Result, internal=internal),
             goal_callback=self.arm_goal_callback,
             cancel_callback=self.cancel_callback,
             callback_group=node.reentrant_group,
@@ -53,7 +54,7 @@ class ArmActions:
             node,
             GripperCommand,
             f"/{namespace}/gripper/command",
-            execute_callback=self.execute_gripper_command,
+            execute_callback=node.web_task_gate.action(self.execute_gripper_command, GripperCommand.Result, internal=internal),
             goal_callback=self.gripper_goal_callback,
             cancel_callback=self.cancel_callback,
             callback_group=node.reentrant_group,
@@ -62,7 +63,7 @@ class ArmActions:
             node,
             GripperGrasp,
             f"/{namespace}/gripper/grasp",
-            execute_callback=self.execute_gripper_grasp,
+            execute_callback=node.web_task_gate.action(self.execute_gripper_grasp, GripperGrasp.Result, internal=internal),
             goal_callback=self.gripper_goal_callback,
             cancel_callback=self.cancel_callback,
             callback_group=node.reentrant_group,
@@ -79,6 +80,8 @@ class ArmActions:
     def _gate_goal(
         self, blocked: tuple[str, ...], label: str
     ) -> GoalResponse:
+        if not self._node.web_task_gate.allowed(self._internal):
+            return GoalResponse.REJECT
         state = self._hardware.state_machine
         if getattr(self._hardware, "_shutdown_pending", False) or state == "SHUTDOWN_FAILED" or state in blocked:
             self._node.get_logger().warn(f"rejecting {label} goal in state {state}")

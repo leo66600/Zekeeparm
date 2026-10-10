@@ -182,6 +182,7 @@ class TeachRosClient:
             Trigger,
             f"/{ns}/disable",
         )
+        self._stop_client = self._node.create_client(Trigger, f"/{ns}/stop")
 
     @staticmethod
     def _positive(value: float, label: str) -> float:
@@ -453,6 +454,9 @@ class TeachRosClient:
 
     def disable(self) -> None:
         self._call_trigger_service(self._disable_client, "disable")
+
+    def stop_and_hold(self) -> None:
+        self._call_trigger_service(self._stop_client, "stop and hold")
 
     def _run_action(
         self,

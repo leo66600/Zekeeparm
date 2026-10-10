@@ -1,0 +1,7 @@
+string command
+string name
+bool supervised
+---
+bool success
+string message
+string status_json

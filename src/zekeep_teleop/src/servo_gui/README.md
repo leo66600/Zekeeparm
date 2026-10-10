@@ -7,7 +7,8 @@
 先按[遥操作 README](../../README.md)安装独立环境及本包。设置实际 `ZKEEP_WS`，在终端执行：
 
 ```bash
-conda activate lerobot
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/lerobot"
 cd "$ZKEEP_WS/src/zekeep_teleop/src"
 python -m servo_gui.server
 ```
@@ -17,7 +18,8 @@ python -m servo_gui.server
 无硬件演练：
 
 ```bash
-conda activate lerobot
+source "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/etc/profile.d/conda.sh"
+conda activate "${ZKEEP_MINIFORGE_DIR:-$HOME/miniforge3}/envs/lerobot"
 cd "$ZKEEP_WS/src/zekeep_teleop/src"
 python -m servo_gui.server --simulate
 ```

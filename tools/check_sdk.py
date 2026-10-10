@@ -8,10 +8,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 SDK_ROOT = ROOT / "zekeeparm_SDK"
 sys.path.insert(0, str(SDK_ROOT))
-sys.path.insert(0, str(ROOT / "src/rebot_grasp"))
+sys.path.insert(0, str(ROOT / "src/zekeep_grasp"))
 
 import zekeeparm_SDK
 from zekeeparm_SDK.actuator import RebotArm, load_cfg
+from zekeeparm_SDK.controllers import RebotArmEndPose
 from zekeeparm_SDK.kinematics import get_end_effector_frame, load_robot_model
 from zekeeparm_SDK.kinematics.robot_model import _resolve_urdf
 from drivers.robot.grasp_driver import (
@@ -47,10 +48,21 @@ def main():
     assert arm.num_joints == 7 and arm.has_gripper
     assert all(j.vendor == "damiao" for j in load_cfg()["joints"])
     urdf_path, _ = _resolve_urdf()
-    assert Path(urdf_path).resolve() == ROOT / "src/rebot_grasp/config/sixaxis.urdf"
+    assert Path(urdf_path).resolve() == ROOT / "src/zekeep_grasp/config/sixaxis.urdf"
     model = load_robot_model()
     assert model.existFrame(get_end_effector_frame())
-    print("SDK imports, DM defaults, controller modes, and model paths: OK")
+    assert model.nq == 8
+    controller = RebotArmEndPose.__new__(RebotArmEndPose)
+    controller.set_gripper_target(1.35)
+    for invalid in (-.01, 1.36, 1.45, float("nan")):
+        try:
+            controller.set_gripper_target(invalid)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("SDK accepted an out-of-range gripper target")
+    assert controller._gripper_target == 1.35
+    print("SDK imports, ROS model loading, and gripper limits: OK")
 
 
 if __name__ == "__main__":

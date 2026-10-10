@@ -1,0 +1,23 @@
+name: rebotarm
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy=1.26.4
+  - scipy>=1.10
+  - pinocchio=3.9.0
+  - matplotlib>=3.10.0
+  - pyyaml>=6.0
+  - pip
+  - setuptools<81
+  - wheel
+  - ninja
+  - pip:
+      - opencv-python==4.7.0.72
+      - opencv-contrib-python==4.7.0.72
+      - ultralytics==8.4.35
+      - pyrealsense2>=2.54
+      - meshcat>=0.3.2
+      - motorbridge==0.5.1
+      - open3d==0.18.0
+      - pyorbbecsdk2==2.1.1

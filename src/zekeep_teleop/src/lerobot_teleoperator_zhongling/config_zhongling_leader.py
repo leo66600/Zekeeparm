@@ -41,7 +41,7 @@ DEFAULT_JOINT_RANGES_DEG: tuple[tuple[float, float], ...] = tuple(
         (-1.57, 1.57),
         (-1.57, 1.57),
         (-1.57, 1.57),
-        (-1.50, 0.0),
+        (-1.35, 0.0),
     )
 )
 
@@ -73,6 +73,7 @@ class ZhonglingLeaderConfig(TeleoperatorConfig):
     startup_zero_check_ids: list[int] = field(default_factory=list)
     startup_zero_tolerance_pwm: int = 50
     use_startup_pose_as_zero: bool = False
+    fixed_pwm_center_ids: list[int] = field(default_factory=list)
     use_background_read: bool = False
     background_read_interval_s: float = 0.0
     start_from_zero: bool = True
@@ -103,6 +104,10 @@ class ZhonglingLeaderConfig(TeleoperatorConfig):
             raise ValueError("startup_zero_check_ids must be unique")
         if any(servo_id not in self.servo_ids for servo_id in self.startup_zero_check_ids):
             raise ValueError("startup_zero_check_ids must be present in servo_ids")
+        if len(set(self.fixed_pwm_center_ids)) != len(self.fixed_pwm_center_ids):
+            raise ValueError("fixed_pwm_center_ids must be unique")
+        if any(servo_id not in self.servo_ids for servo_id in self.fixed_pwm_center_ids):
+            raise ValueError("fixed_pwm_center_ids must be present in servo_ids")
         if len(set(self.joint_names)) != expected:
             raise ValueError("joint_names must be unique")
         if any(direction not in (-1, 1) for direction in self.joint_directions):

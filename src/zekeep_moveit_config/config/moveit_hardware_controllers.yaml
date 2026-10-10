@@ -8,6 +8,7 @@ trajectory_execution:
 moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
 
 moveit_simple_controller_manager:
+  # hardware.launch.py binds this default controller to arm_namespace.
   controller_names:
     - zekeep
 

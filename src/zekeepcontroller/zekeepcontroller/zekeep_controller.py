@@ -11,6 +11,9 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.signals import SignalHandlerOptions
 from moveit_msgs.srv import GetStateValidity
+from rcl_interfaces.msg import ParameterDescriptor
+from zekeep_msgs.srv import WebTaskLease
+from .web_task_gate import WebTaskGate
 
 from .hardware_manager import HardwareManager
 from .motor_passthrough import MotorPassthrough
@@ -61,6 +64,16 @@ class ZekeepController(Node):
             channel=channel,
             auto_enable=bool(self.get_parameter("auto_enable").value),
         )
+        # Report the resolved calibration; launch overrides must not replace it.
+        for name, value in (
+            ("web_gripper_open_rad", self.hardware.gripper_open_position),
+            ("web_gripper_close_rad", self.hardware.gripper_close_position),
+            ("web_gripper_max_width_m", self.hardware.gripper_max_width),
+        ):
+            self.declare_parameter(
+                name, float(value), ParameterDescriptor(read_only=True),
+                ignore_override=True,
+            )
         self._validity_client = self.create_client(
             GetStateValidity, "/check_state_validity", callback_group=self.reentrant_group
         )
@@ -73,6 +86,12 @@ class ZekeepController(Node):
             self.arm_namespace,
             joint_state_rate,
         )
+        self.web_task_gate = WebTaskGate(self.hardware)
+        self.create_service(WebTaskLease, f"/{self.arm_namespace}/web_task/lease",
+                            self.web_task_gate.lease, callback_group=self.reentrant_group)
+        self.create_timer(0.1, self.check_web_task_lease, callback_group=self.reentrant_group)
+        self.task_services = ArmServices(self, self.hardware, self.arm_namespace + "/web_task", internal=True)
+        self.task_actions = ArmActions(self, self.hardware, self.arm_namespace + "/web_task", internal=True)
         self.arm_services = ArmServices(self, self.hardware, self.arm_namespace)
         self.arm_actions = ArmActions(self, self.hardware, self.arm_namespace)
         self.motor_passthrough = MotorPassthrough(
@@ -91,6 +110,12 @@ class ZekeepController(Node):
     def publish_arm_status(self, *, read_hardware: bool = True) -> None:
         """Publish current controller status, optionally reading motor feedback."""
         self.joint_state_publisher.publish_status(read_hardware=read_hardware)
+
+    def check_web_task_lease(self) -> None:
+        try:
+            self.web_task_gate.watchdog()
+        except Exception as exc:
+            self.get_logger().error(f"web task hold unconfirmed; ownership retained: {exc}")
 
     def validate_home_path(self, samples) -> None:
         """Fail closed when the planning scene cannot validate the sampled path."""

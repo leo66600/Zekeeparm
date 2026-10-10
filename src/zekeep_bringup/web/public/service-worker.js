@@ -1,16 +1,18 @@
-const CACHE_NAME = 'rebot-arm-pwa-v78-jointlimit2';
+const CACHE_NAME = 'zekeep-arm-pwa-v81-gripper135';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/favicon.png',
-  '/css/rebot-sim.css?v=20260827-jointlimit1',
+  '/logo-black.png',
+  '/css/rebot-sim.css?v=20261009-black-logo',
   '/js/pwa.js?v=20260612-fakecarry1',
-  '/js/i18n.js?v=20260827-jointlimit1',
+  '/js/i18n.js?v=20261010-gripper135',
   '/js/ros/rebot-control-policy.js?v=20260827-iktraj2',
-  '/js/rebot-sim.js?v=20260827-jointlimit2',
+  '/js/rebot-sim.js?v=20261010-gripper135',
   '/js/ros/rebot-ros-client.js?v=20260826-safety1',
-  '/js/ros/rebot-ros-ui.js?v=20260827-gripperhold1',
+  '/js/ros/rebot-ros-ui.js?v=20261010-gripper135',
+  '/js/rebot-llm.js?v=20260807-i18n1',
   '/lib/three-r128.min.js',
   '/lib/STLLoader-umd.js',
   '/lib/URDFLoader.js'

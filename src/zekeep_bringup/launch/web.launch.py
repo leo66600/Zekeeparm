@@ -1,7 +1,8 @@
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
-from launch.substitutions import FindExecutable, PathJoinSubstitution
+from launch.substitutions import FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -15,17 +16,22 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            DeclareLaunchArgument("start_ai", default_value="true"),
             IncludeLaunchDescription(
                 AnyLaunchDescriptionSource(rosbridge_launch),
+                # Quote bracketed lists so XML passes STRING parameters to the glob parsers.
                 launch_arguments={
                     "port": "9090", "address": "127.0.0.1",
-                    # XML launch evaluates parameter values as YAML; keep globs as strings.
-                    "topics_glob": "'[/zekeep/*,/joint_states,/tf,/tf_static]'",
-                    "services_glob": "'[/zekeep/*,/rosapi/*]'",
-                    "params_glob": "'[/__web_parameters_disabled__]'",
                     "call_services_in_new_thread": "true",
                     "send_action_goals_in_new_thread": "true",
+                    "topics_glob": '"[/zekeep/*,/joint_states,/tf,/tf_static,/camera/color/*,/gemini305g/color/*]"',
+                    "services_glob": '"[/zekeep/*,/rosapi/*,/ZekeepController/get_parameters,/compute_ik]"',
+                    "params_glob": '"[/__web_parameters_disabled__]"',
                 }.items(),
+            ),
+            IncludeLaunchDescription(
+                AnyLaunchDescriptionSource(PathJoinSubstitution([bringup_share, "launch", "web_ai.launch.py"])),
+                condition=IfCondition(LaunchConfiguration("start_ai")),
             ),
             ExecuteProcess(
                 cmd=[FindExecutable(name="node"), web_server],

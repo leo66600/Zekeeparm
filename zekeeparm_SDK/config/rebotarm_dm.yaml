@@ -10,8 +10,13 @@
 # Each group has its own control mode and is sent independently
 # Kinematics config (URDF path, end-effector frame)
 
-urdf_path: "../src/rebot_grasp/config/sixaxis.urdf"
+urdf_path: "../src/zekeep_grasp/config/sixaxis.urdf"
 end_effector_frame: "official_tcp"
+
+gripper:
+  position_limits: {open: 1.35, close: 0.0}
+  # 1.45 rad maps to 70 mm; 1.35 rad is the authorized upper limit.
+  max_width_m: 0.06517241379310346
 
 channel: /dev/ttyACM0
 rate: 500

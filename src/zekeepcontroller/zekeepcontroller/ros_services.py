@@ -20,7 +20,7 @@ ResponseT = TypeVar("ResponseT")
 class ArmServices:
     """Register ROS services that operate the arm and gripper safely."""
 
-    def __init__(self, node: Node, hardware: Any, namespace: str) -> None:
+    def __init__(self, node: Node, hardware: Any, namespace: str, *, internal=False) -> None:
         self._node = node
         self._hardware = hardware
 
@@ -55,6 +55,8 @@ class ArmServices:
             (GripperCommand, "gripper/close", self.close_gripper, node.slow_group),
         )
         for srv_type, name, handler, group in services:
+            if name not in ('stop', 'disable', 'move_to_pose_ik', 'gravity_compensation/status'):
+                handler = node.web_task_gate.service(handler, internal=internal)
             node.create_service(
                 srv_type,
                 f"/{namespace}/{name}",

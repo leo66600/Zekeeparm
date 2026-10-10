@@ -28,7 +28,7 @@ joint_limits:
 
   joint3:
     has_position_limits: true
-    min_position: 0.0
+    min_position: -0.01
     max_position: 3.7
     has_velocity_limits: true
     max_velocity: 0.5
@@ -66,7 +66,7 @@ joint_limits:
   gripper_joint:
     has_position_limits: true
     min_position: 0.0
-    max_position: 0.035
+    max_position: 0.03258620689655173
     has_velocity_limits: true
     max_velocity: 0.05
     has_acceleration_limits: true

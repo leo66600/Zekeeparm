@@ -1,0 +1,18 @@
+info
+Log
+logs/
+data
+unused/*
+mobileclip2_b.ts
+__pycache__/
+.pytest_cache/
+*.pyc
+sdk/*
+models/
+runs/
+*.npz
+*voice*
+
+# Current reference calibration; local identities and backups stay excluded.
+!config/calibration/orbbec_gemini2/intrinsics.npz
+!config/calibration/orbbec_gemini2/hand_eye.npz

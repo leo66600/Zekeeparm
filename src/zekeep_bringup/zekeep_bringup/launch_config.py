@@ -71,6 +71,7 @@ def create_controller_node(
     configurations: Mapping[str, LaunchConfiguration],
     *,
     shutdown_on_exit: bool = False,
+    python_executable: Any = None,
 ) -> Node:
     """Create the Zekeep controller node from shared launch values."""
     parameters = {
@@ -107,4 +108,6 @@ def create_controller_node(
         node_arguments["on_exit"] = Shutdown(
             reason="ZekeepController exited"
         )
+    if python_executable is not None:
+        node_arguments["prefix"] = python_executable
     return Node(**node_arguments)

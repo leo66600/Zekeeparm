@@ -180,8 +180,9 @@ class ZhonglingLeader(Teleoperator):
         return pwms
 
     def _set_startup_pwm_centers(self, pwms: list[int]) -> None:
+        centers: list[int] = []
         for index, (servo_id, pwm) in enumerate(zip(self.config.servo_ids, pwms, strict=True)):
-            pwm_min, _, pwm_max = self.config.pwm_ranges[index]
+            pwm_min, configured_center, pwm_max = self.config.pwm_ranges[index]
             minimum_margin = self.config.zero_deadband_pwm + 1
             if not pwm_min + minimum_margin <= pwm <= pwm_max - minimum_margin:
                 raise ConnectionError(
@@ -189,10 +190,13 @@ class ZhonglingLeader(Teleoperator):
                     f"to configured endpoint [{pwm_min}, {pwm_max}] for a "
                     f"±{self.config.zero_deadband_pwm} zero deadband"
                 )
-        self._startup_pwm_centers = pwms.copy()
+            centers.append(
+                configured_center if servo_id in self.config.fixed_pwm_center_ids else pwm
+            )
+        self._startup_pwm_centers = centers
         captured = ", ".join(
             f"{servo_id:03d}={pwm}"
-            for servo_id, pwm in zip(self.config.servo_ids, pwms, strict=True)
+            for servo_id, pwm in zip(self.config.servo_ids, centers, strict=True)
         )
         logger.info(f"{self} captured startup pose as session zero: {captured}")
 

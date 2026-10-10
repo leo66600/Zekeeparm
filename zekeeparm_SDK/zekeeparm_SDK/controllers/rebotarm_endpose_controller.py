@@ -168,14 +168,16 @@ class RebotArmEndPose:
     # ── 公共 API ───────────────────────────────────────────────────────────
 
     def set_gripper_target(self, pos: float) -> None:
-        self._gripper_target = float(pos)
+        target = float(pos)
+        if not np.isfinite(target) or not 0.0 <= target <= 1.35:
+            raise ValueError("gripper target must be within [0, 1.35] rad")
+        self._gripper_target = target
 
     def open_gripper(self) -> None:
         if self._has_gripper:
             self._gripper_group._mit_kp.fill(0)
             self._gripper_group._mit_kd.fill(0)
-            pv = self._gripper_group._pv_vlim
-            self._gripper_target = float(pv[0]) if pv.size > 0 else 0.0
+            self.set_gripper_target(1.35)
 
     def close_gripper(self) -> None:
         if self._has_gripper:
